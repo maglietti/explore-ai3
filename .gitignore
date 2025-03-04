@@ -129,7 +129,6 @@ tmp/
 temp/
 
 # SQL dump files
-*.sql
 *.sql.gz
 *.dump
 
