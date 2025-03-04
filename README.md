@@ -4,6 +4,8 @@
 
 This project establishes a three-node Apache Ignite cluster for exploring and working with the [Chinook Database](https://github.com/lerocha/chinook-database/tree/master). You'll learn how to set up and manage a distributed data grid with Apache Ignite 3, execute SQL queries, and leverage advanced features like data partitioning and replication.
 
+![](https://private-user-images.githubusercontent.com/135025/299867754-cea7a05a-5c36-40cd-84c7-488307a123f4.png?jwt=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbSIsImtleSI6ImtleTUiLCJleHAiOjE3NDExMjU1NDQsIm5iZiI6MTc0MTEyNTI0NCwicGF0aCI6Ii8xMzUwMjUvMjk5ODY3NzU0LWNlYTdhMDVhLTVjMzYtNDBjZC04NGM3LTQ4ODMwN2ExMjNmNC5wbmc_WC1BbXotQWxnb3JpdGhtPUFXUzQtSE1BQy1TSEEyNTYmWC1BbXotQ3JlZGVudGlhbD1BS0lBVkNPRFlMU0E1M1BRSzRaQSUyRjIwMjUwMzA0JTJGdXMtZWFzdC0xJTJGczMlMkZhd3M0X3JlcXVlc3QmWC1BbXotRGF0ZT0yMDI1MDMwNFQyMTU0MDRaJlgtQW16LUV4cGlyZXM9MzAwJlgtQW16LVNpZ25hdHVyZT1kN2VhNmNhZDRmNzIyMmNiMWNhZTNmNWU4NzM5ODEzMTQ5MTYzM2QwMDcxOTRhZDc0ZDdlZDU5OWQ1YjJhYzZjJlgtQW16LVNpZ25lZEhlYWRlcnM9aG9zdCJ9.ux30iQ27KdYqAr8bZXe5p5crQo4x8NdSQBf_EdZ9Drk)
+
 ## Features
 
 - **Distributed Data Grid**: Run a three-node Apache Ignite cluster using Docker
