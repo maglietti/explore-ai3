@@ -10,7 +10,7 @@
 # The cloud-connector service is disabled by default and will only start if the "cloud-connector" profile is specified.
 #
 # - To start the CLI:
-#     docker run --rm -it --network=host -e LANG=C.UTF-8 -e LC_ALL=C.UTF-8 apacheignite/ignite:3.0.0 cli
+#     docker run --rm -it --network=ignite3_default -e LANG=C.UTF-8 -e LC_ALL=C.UTF-8 apacheignite/ignite:3.0.0 cli
 #
 # - To initialize the cluster
 #     cluster init --name=ignite3 --metastorage-group=node1,node2,node3
