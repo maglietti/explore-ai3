@@ -1,0 +1,71 @@
+# Docker Compose file for running an Apache Ignite 3 cluster.
+#
+# Usage:
+# - To start only the Ignite nodes (default behavior):
+#     docker compose up
+#
+# - To start the Ignite nodes along with the optional cloud-connector:
+#     docker compose --profile cloud-connector up
+#
+# The cloud-connector service is disabled by default and will only start if the "cloud-connector" profile is specified.
+#
+# - To start the CLI:
+#     docker run --rm -it --network=host -e LANG=C.UTF-8 -e LC_ALL=C.UTF-8 apacheignite/ignite:3.0.0 cli
+#
+# - To initialize the cluster
+#     cluster init --name=ignite3 --metastorage-group=node1,node2,node3
+#
+
+name: ignite3
+
+x-ignite-def: &ignite-def
+  image: apacheignite/ignite:3.0.0
+  environment:
+    JVM_MAX_MEM: "4g"
+    JVM_MIN_MEM: "4g"
+  configs:
+    - source: node_config
+      target: /opt/ignite/etc/ignite-config.conf
+
+x-cloud-connector-def: &cloud-connector-def
+  image: gridgain/cloud-connector:2025-02-14
+  environment:
+    - CONNECTOR_CC_URL=https://portal.gridgain.com
+    - CONNECTOR_BASE_URL=http://cloud-connector:3200
+    - CONNECTOR_NAME=Ignite3
+    - CONNECTOR_USERNAME=${CC_USERNAME}
+    - CONNECTOR_PASSWORD=${CC_PASSWORD}
+
+services:
+  node1:
+    <<: *ignite-def
+    command: --node-name node1
+    ports:
+      - "10300:10300"
+      - "10800:10800"
+  node2:
+    <<: *ignite-def
+    command: --node-name node2
+    ports:
+      - "10301:10300"
+      - "10801:10800"
+  node3:
+    <<: *ignite-def
+    command: --node-name node3
+    ports:
+      - "10302:10300"
+      - "10802:10800"
+  cloud-connector:
+    <<: *cloud-connector-def
+    profiles:
+      - cloud-connector
+
+configs:
+  node_config:
+    content: |
+      ignite {
+        network {
+          port: 3344
+          nodeFinder.netClusterNodes = ["node1:3344", "node2:3344", "node3:3344"]
+        }
+      }
