@@ -8,5 +8,6 @@ FROM
 GROUP BY
     Invoice.InvoiceId,
     Invoice.Total
+ORDER BY
+    Invoice.InvoiceId DESC
 LIMIT 10;
-
