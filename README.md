@@ -75,7 +75,7 @@ cluster status
 Populate the cluster with the Chinook dataset:
 
 ```shell
-sql --file=/opt/ignite/downloads/Chinook_Ignite3.sql
+sql --file=/opt/ignite/downloads/chinook-ignite3.sql
 ```
 
 ## Working with Data
