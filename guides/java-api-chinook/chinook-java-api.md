@@ -796,14 +796,13 @@ Transactions in Ignite ensure that multiple operations either all succeed or all
 * You need to handle concurrent access to data
 
 ```java
-try (Transaction tx = client.transactions().begin(TransactionOptions.DEFAULT)) {
+client.transactions().runInTransaction(tx -> {
     // Perform multiple operations
     client.sql().execute(tx, "INSERT INTO Artist VALUES (...)");
     albumView.upsert(tx, newAlbum);
     
-    // Commit when all operations are successful
-    tx.commit();
-}
+    // No need to explicitly commit - happens automatically when lambda completes
+});
 ```
 
 ### Java API vs. SQL
