@@ -158,6 +158,8 @@ Now, log in to your GridGain Control Center account:
 * Go to [https://portal.gridgain.com](https://portal.gridgain.com)
 * Enter your credentials
 
+![](./cluster.png)
+
 You should see your Ignite3 cluster appearing in the list of clusters. It may take a minute or two for the connection to be established and for data to start flowing.
 
 ## Step 7: Explore the Cluster in Control Center
