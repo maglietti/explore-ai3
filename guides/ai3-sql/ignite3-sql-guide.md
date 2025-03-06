@@ -78,7 +78,7 @@ cluster init --name=ignite3 --metastorage-group=node1,node2,node3
 You should see the message "Cluster was initialized successfully".
 
 ```bash
-docker run --rm -it --network=ignite3_default -e LANG=C.UTF-8 -e LC_ALL=C.UTF-8 apacheignite/ignite:3.0.0 cli
+
 
 
            #              ___                         __
@@ -321,92 +321,87 @@ Now that we have our tables set up, let's populate them with sample data.
 
 ### Adding Artists and Albums
 
-Let's start by adding some artists:
+Let's start by adding some artists. Exit the `swl-cli>` by typing `exit;`. Then load the current store catalog form the sql data file.
 
-```sql
-INSERT INTO Artist (ArtistId, Name) VALUES
-    (1, 'AC/DC'),
-    (2, 'Accept'),
-    (3, 'Aerosmith'),
-    (4, 'Alanis Morissette'),
-    (5, 'Alice In Chains');
+```bash
+sql --file=/opt/ignite/downloads/current_catalog.sql
 ```
 
-Now let's add albums for these artists:
-
-```sql
-INSERT INTO Album (AlbumId, Title, ArtistId, ReleaseYear) VALUES
-    (1, 'For Those About To Rock We Salute You', 1, 1981),
-    (2, 'Balls to the Wall', 2, 1983),
-    (3, 'Restless and Wild', 2, 1982),
-    (4, 'Let There Be Rock', 1, 1977),
-    (5, 'Big Ones', 3, 1994);
+```bash
+sql-cli> exit;
+[node1]> sql --file=/opt/ignite/downloads/current_catalog.sql
+Updated 275 rows.
+Updated 347 rows.
 ```
 
 ### Adding Genres and Media Types
 
-Let's populate our reference tables:
+Let's populate our reference tables the same way:
 
-```sql
-INSERT INTO Genre (GenreId, Name) VALUES
-    (1, 'Rock'),
-    (2, 'Jazz'),
-    (3, 'Metal'),
-    (4, 'Alternative & Punk'),
-    (5, 'Rock And Roll');
+```bash
+sql --file=/opt/ignite/downloads/media_and_genre.sql
+```
 
-INSERT INTO MediaType (MediaTypeId, Name) VALUES
-    (1, 'MPEG audio file'),
-    (2, 'Protected AAC audio file'),
-    (3, 'Protected MPEG-4 video file'),
-    (4, 'Purchased AAC audio file'),
-    (5, 'AAC audio file');
+```bash
+[node1]> sql --file=/opt/ignite/downloads/media_and_genre.sql
+Updated 25 rows.
+Updated 5 rows.
 ```
 
 ### Adding Tracks
 
 Now let's add some tracks to our albums:
 
-```sql
-INSERT INTO Track (TrackId, Name, AlbumId, MediaTypeId, GenreId, Composer, Milliseconds, Bytes, UnitPrice) VALUES
-    (1, 'For Those About To Rock (We Salute You)', 1, 1, 1, 'Angus Young, Malcolm Young, Brian Johnson', 343719, 11170334, 0.99),
-    (2, 'Balls to the Wall', 2, 2, 1, 'U. Dirkschneider, W. Hoffmann, H. Frank, P. Baltes, S. Kaufmann, G. Hoffmann', 342562, 5510424, 0.99),
-    (3, 'Fast As a Shark', 3, 2, 1, 'F. Baltes, S. Kaufman, U. Dirkscneider & W. Hoffman', 230619, 3990994, 0.99),
-    (4, 'Restless and Wild', 3, 2, 1, 'F. Baltes, R.A. Smith-Diesel, S. Kaufman, U. Dirkscneider & W. Hoffman', 252051, 4331779, 0.99),
-    (5, 'Princess of the Dawn', 3, 2, 1, 'Deaffy & R.A. Smith-Diesel', 375418, 6290521, 0.99);
+```bash
+sql --file=/opt/ignite/downloads/tracks.sql
+```
+
+```bash
+[node1]> sql --file=/opt/ignite/downloads/tracks.sql
+Updated 1000 rows.
+Updated 1000 rows.
+Updated 1000 rows.
+Updated 503 rows.
 ```
 
 ### Adding Employees and Customers
 
 Let's add some employee and customer data:
 
-```sql
-INSERT INTO Employee (EmployeeId, LastName, FirstName, Title, ReportsTo, BirthDate, HireDate, Address, City, State, Country, PostalCode, Phone, Fax, Email) VALUES
-    (1, 'Adams', 'Andrew', 'General Manager', NULL, date '1962-02-18', date '2002-08-14', '11120 Jasper Ave NW', 'Edmonton', 'AB', 'Canada', 'T5K 2N1', '+1 (780) 428-9482', '+1 (780) 428-3457', 'andrew@chinookcorp.com'),
-    (2, 'Edwards', 'Nancy', 'Sales Manager', 1, date '1958-12-08', date '2002-05-01', '825 8 Ave SW', 'Calgary', 'AB', 'Canada', 'T2P 2T3', '+1 (403) 262-3443', '+1 (403) 262-3322', 'nancy@chinookcorp.com'),
-    (3, 'Peacock', 'Jane', 'Sales Support Agent', 2, date '1973-08-29', date '2002-04-01', '1111 6 Ave SW', 'Calgary', 'AB', 'Canada', 'T2P 5M5', '+1 (403) 262-3443', '+1 (403) 262-6712', 'jane@chinookcorp.com');
+```bash
+sql --file=/opt/ignite/downloads/ee_and_cust.sql
+```
 
-INSERT INTO Customer (CustomerId, FirstName, LastName, Company, Address, City, State, Country, PostalCode, Phone, Fax, Email, SupportRepId) VALUES
-    (1, 'Luís', 'Gonçalves', 'Embraer - Empresa Brasileira de Aeronáutica S.A.', 'Av. Brigadeiro Faria Lima, 2170', 'São José dos Campos', 'SP', 'Brazil', '12227-000', '+55 (12) 3923-5555', '+55 (12) 3923-5566', 'luisg@embraer.com.br', 3),
-    (2, 'Leonie', 'Köhler', NULL, 'Theodor-Heuss-Straße 34', 'Stuttgart', NULL, 'Germany', '70174', '+49 0711 2842222', NULL, 'leonekohler@surfeu.de', 3),
-    (3, 'François', 'Tremblay', NULL, '1498 rue Bélanger', 'Montréal', 'QC', 'Canada', 'H2G 1A7', '+1 (514) 721-4711', NULL, 'ftremblay@gmail.com', 3);
+```bash
+[node1]> sql --file=/opt/ignite/downloads/ee_and_cust.sql
+Updated 8 rows.
+Updated 59 rows.
 ```
 
 ### Adding Invoices and Invoice Lines
 
 Finally, let's add some sales data:
 
-```sql
-INSERT INTO Invoice (InvoiceId, CustomerId, InvoiceDate, BillingAddress, BillingCity, BillingState, BillingCountry, BillingPostalCode, Total) VALUES
-    (1, 2, date '2021-01-01', 'Theodor-Heuss-Straße 34', 'Stuttgart', NULL, 'Germany', '70174', 1.98),
-    (2, 3, date '2021-01-02', '1498 rue Bélanger', 'Montréal', 'QC', 'Canada', 'H2G 1A7', 3.96);
+```bash
+sql --file=/opt/ignite/downloads/invoices.sql
+```
 
-INSERT INTO InvoiceLine (InvoiceLineId, InvoiceId, TrackId, UnitPrice, Quantity) VALUES
-    (1, 1, 2, 0.99, 1),
-    (2, 1, 4, 0.99, 1),
-    (3, 2, 1, 0.99, 1),
-    (4, 2, 2, 0.99, 1),
-    (5, 2, 3, 0.99, 1);
+```bash
+[node1]> sql --file=/opt/ignite/downloads/invoices.sql
+Updated 412 rows.
+Updated 1000 rows.
+Updated 1000 rows.
+Updated 240 rows.
+Updated 18 rows.
+Updated 1000 rows.
+Updated 1000 rows.
+Updated 1000 rows.
+Updated 1000 rows.
+Updated 1000 rows.
+Updated 1000 rows.
+Updated 1000 rows.
+Updated 1000 rows.
+Updated 715 rows.
 ```
 
 ## Querying Data in Ignite SQL
@@ -415,30 +410,46 @@ Now that we have data in our tables, let's run some SQL queries to explore the C
 
 ### Basic Queries
 
-Let's start with some simple SELECT queries:
+Let's the `sql-cli>` and start with some simple SELECT queries:
+
+```bash
+sql
+```
 
 ```sql
 -- Get all artists
 SELECT * FROM Artist;
 
 -- Get all albums for a specific artist
-SELECT * FROM Album WHERE ArtistId = 2;
+SELECT * FROM Album WHERE ArtistId = 3;
 
 -- Get all tracks for a specific album
-SELECT * FROM Track WHERE AlbumId = 3;
+SELECT * FROM Track WHERE AlbumId = 133;
 ```
 
 ```bash
-sql-cli> SELECT * FROM Track WHERE AlbumId = 3;
-╔═════════╤══════════════════════╤═════════╤═════════════╤═════════╤════════════════════════════════════════════════════════════════════════╤══════════════╤═════════╤═══════════╗
-║ TRACKID │ NAME                 │ ALBUMID │ MEDIATYPEID │ GENREID │ COMPOSER                                                               │ MILLISECONDS │ BYTES   │ UNITPRICE ║
-╠═════════╪══════════════════════╪═════════╪═════════════╪═════════╪════════════════════════════════════════════════════════════════════════╪══════════════╪═════════╪═══════════╣
-║ 3       │ Fast As a Shark      │ 3       │ 2           │ 1       │ F. Baltes, S. Kaufman, U. Dirkscneider & W. Hoffman                    │ 230619       │ 3990994 │ 0.99      ║
-╟─────────┼──────────────────────┼─────────┼─────────────┼─────────┼────────────────────────────────────────────────────────────────────────┼──────────────┼─────────┼───────────╢
-║ 5       │ Princess of the Dawn │ 3       │ 2           │ 1       │ Deaffy & R.A. Smith-Diesel                                             │ 375418       │ 6290521 │ 0.99      ║
-╟─────────┼──────────────────────┼─────────┼─────────────┼─────────┼────────────────────────────────────────────────────────────────────────┼──────────────┼─────────┼───────────╢
-║ 4       │ Restless and Wild    │ 3       │ 2           │ 1       │ F. Baltes, R.A. Smith-Diesel, S. Kaufman, U. Dirkscneider & W. Hoffman │ 252051       │ 4331779 │ 0.99      ║
-╚═════════╧══════════════════════╧═════════╧═════════════╧═════════╧════════════════════════════════════════════════════════════════════════╧══════════════╧═════════╧═══════════╝
+sql-cli> SELECT * FROM Track WHERE AlbumId = 133;
+╔═════════╤═════════════════════════════════════════╤═════════╤═════════════╤═════════╤════════════════════════════════════════════════════════╤══════════════╤══════════╤═══════════╗
+║ TRACKID │ NAME                                    │ ALBUMID │ MEDIATYPEID │ GENREID │ COMPOSER                                               │ MILLISECONDS │ BYTES    │ UNITPRICE ║
+╠═════════╪═════════════════════════════════════════╪═════════╪═════════════╪═════════╪════════════════════════════════════════════════════════╪══════════════╪══════════╪═══════════╣
+║ 1633    │ Ramble On                               │ 133     │ 1           │ 1       │ Jimmy Page, Robert Plant                               │ 275591       │ 9199710  │ 0.99      ║
+╟─────────┼─────────────────────────────────────────┼─────────┼─────────────┼─────────┼────────────────────────────────────────────────────────┼──────────────┼──────────┼───────────╢
+║ 1628    │ What Is And What Should Never Be        │ 133     │ 1           │ 1       │ Jimmy Page, Robert Plant                               │ 287973       │ 9369385  │ 0.99      ║
+╟─────────┼─────────────────────────────────────────┼─────────┼─────────────┼─────────┼────────────────────────────────────────────────────────┼──────────────┼──────────┼───────────╢
+║ 1631    │ Heartbreaker                            │ 133     │ 1           │ 1       │ Jimmy Page, Robert Plant, John Paul Jones, John Bonham │ 253988       │ 8387560  │ 0.99      ║
+╟─────────┼─────────────────────────────────────────┼─────────┼─────────────┼─────────┼────────────────────────────────────────────────────────┼──────────────┼──────────┼───────────╢
+║ 1630    │ Thank You                               │ 133     │ 1           │ 1       │ Jimmy Page, Robert Plant                               │ 287791       │ 9337392  │ 0.99      ║
+╟─────────┼─────────────────────────────────────────┼─────────┼─────────────┼─────────┼────────────────────────────────────────────────────────┼──────────────┼──────────┼───────────╢
+║ 1627    │ Whole Lotta Love                        │ 133     │ 1           │ 1       │ Jimmy Page, Robert Plant, John Paul Jones, John Bonham │ 334471       │ 11026243 │ 0.99      ║
+╟─────────┼─────────────────────────────────────────┼─────────┼─────────────┼─────────┼────────────────────────────────────────────────────────┼──────────────┼──────────┼───────────╢
+║ 1629    │ The Lemon Song                          │ 133     │ 1           │ 1       │ Jimmy Page, Robert Plant, John Paul Jones, John Bonham │ 379141       │ 12463496 │ 0.99      ║
+╟─────────┼─────────────────────────────────────────┼─────────┼─────────────┼─────────┼────────────────────────────────────────────────────────┼──────────────┼──────────┼───────────╢
+║ 1632    │ Living Loving Maid (She's Just A Woman) │ 133     │ 1           │ 1       │ Jimmy Page, Robert Plant                               │ 159216       │ 5219819  │ 0.99      ║
+╟─────────┼─────────────────────────────────────────┼─────────┼─────────────┼─────────┼────────────────────────────────────────────────────────┼──────────────┼──────────┼───────────╢
+║ 1634    │ Moby Dick                               │ 133     │ 1           │ 1       │ John Bonham, John Paul Jones, Jimmy Page               │ 260728       │ 8664210  │ 0.99      ║
+╟─────────┼─────────────────────────────────────────┼─────────┼─────────────┼─────────┼────────────────────────────────────────────────────────┼──────────────┼──────────┼───────────╢
+║ 1635    │ Bring It On Home                        │ 133     │ 1           │ 1       │ Jimmy Page, Robert Plant                               │ 259970       │ 8494731  │ 0.99      ║
+╚═════════╧═════════════════════════════════════════╧═════════╧═════════════╧═════════╧════════════════════════════════════════════════════════╧══════════════╧══════════╧═══════════╝
 ```
 
 ### Joins
@@ -620,41 +631,6 @@ This query identifies each artist's albums with the highest track count using CT
 
 Let's explore how to modify data using SQL in Ignite.
 
-### Inserting Data with SELECT
-
-You can insert data based on the results of a SELECT query:
-
-```sql
--- Insert a new artist
-INSERT INTO Artist (ArtistId, Name) 
-VALUES (6, 'Queen');
-
--- Insert a new album for this artist
-INSERT INTO Album (AlbumId, Title, ArtistId, ReleaseYear)
-VALUES (6, 'A Night at the Opera', 6, 1975);
-
--- Add tracks to the new album
-INSERT INTO Track (TrackId, Name, AlbumId, MediaTypeId, GenreId, Composer, Milliseconds, Bytes, UnitPrice)
-VALUES
-    (6, 'Bohemian Rhapsody', 6, 1, 1, 'Freddie Mercury', 354947, 5733664, 0.99),
-    (7, 'You''re My Best Friend', 6, 1, 1, 'John Deacon', 175733, 2875239, 0.99);
-```
-
-### Updating Data
-
-Let's update some existing data:
-
-```sql
--- Update an artist's name
-UPDATE Artist
-SET Name = 'Queen - The Band'
-WHERE ArtistId = 6;
-
--- Increase the price of all tracks by 10%
-UPDATE Track
-SET UnitPrice = UnitPrice * 1.1;
-```
-
 ### Transactions
 
 Note that Apache Ignite 3 (as of version 3.0.0) has limited support for transactions using the Java API using a SQL Script.
@@ -676,9 +652,6 @@ SELECT * FROM system.zones;
 
 -- View all columns for a specific table
 SELECT * FROM system.table_columns WHERE TABLE_NAME = 'TRACK';
-
--- Check index information
-SELECT * FROM system.indexes;
 ```
 
 ### Creating Indexes for Better Performance
@@ -694,6 +667,9 @@ CREATE INDEX idx_album_artist ON Album (ArtistId, Title);
 
 -- Create a hash index for lookups by email
 CREATE INDEX idx_customer_email ON Customer USING HASH (Email);
+
+-- Check index information
+SELECT * FROM system.indexes;
 ```
 
 ## Creating a Dashboard Using SQL
@@ -927,7 +903,7 @@ Ignite can perform distributed joins when data isn't colocated. For example, if 
 
 ```sql
 -- This uses a distributed join since PlaylistTrack and Track 
--- don't have a colocation relationship
+-- doesn't have a colocation relationship
 SELECT 
     p.Name AS PlaylistName, 
     t.Name AS TrackName
@@ -937,56 +913,6 @@ FROM
     JOIN Track t ON pt.TrackId = t.TrackId
 ORDER BY 
     p.Name, t.Name;
-```
-
-### Using Transactions for Data Consistency
-
-Transactions are crucial for maintaining data consistency. Let's explore a more complex transaction:
-
-```sql
--- Start a transaction
-START TRANSACTION READ WRITE;
-
--- Add a new customer
-INSERT INTO Customer (CustomerId, FirstName, LastName, Email, SupportRepId)
-VALUES (4, 'John', 'Doe', 'john.doe@example.com', 3);
-
--- Create a new invoice for the customer
-INSERT INTO Invoice (InvoiceId, CustomerId, InvoiceDate, Total)
-VALUES (4, 4, CURRENT_DATE, 0.00);
-
--- Add items to the invoice
-INSERT INTO InvoiceLine (InvoiceLineId, InvoiceId, TrackId, UnitPrice, Quantity)
-VALUES
-    (8, 4, 1, 0.99, 2),  -- Two copies of track 1
-    (9, 4, 3, 0.99, 1);  -- One copy of track 3
-
--- Update the invoice total
-UPDATE Invoice
-SET Total = (
-    SELECT SUM(UnitPrice * Quantity)
-    FROM InvoiceLine
-    WHERE InvoiceId = 4
-)
-WHERE InvoiceId = 4;
-
--- Commit the transaction
-COMMIT;
-
--- Verify the results
-SELECT 
-    c.FirstName || ' ' || c.LastName AS CustomerName,
-    i.InvoiceId,
-    i.Total,
-    COUNT(il.InvoiceLineId) AS ItemCount
-FROM 
-    Customer c
-    JOIN Invoice i ON c.CustomerId = i.CustomerId
-    JOIN InvoiceLine il ON i.InvoiceId = il.InvoiceId
-WHERE 
-    c.CustomerId = 4
-GROUP BY 
-    c.FirstName, c.LastName, i.InvoiceId, i.Total;
 ```
 
 ### Schema Modification
@@ -1007,29 +933,6 @@ WHERE DateRegistered IS NULL;
 
 -- Drop a column we don't need
 ALTER TABLE Album DROP COLUMN ReleaseYear;
-```
-
-### Creating Views
-
-Views allow you to save complex queries as virtual tables:
-
-```sql
--- Create a view for sales analytics
-CREATE VIEW SalesByGenre AS
-SELECT 
-    g.Name AS Genre,
-    COUNT(DISTINCT t.TrackId) AS UniqueTracksCount,
-    SUM(il.Quantity) AS TotalTracksSold,
-    SUM(il.Quantity * il.UnitPrice) AS TotalRevenue
-FROM 
-    Genre g
-    JOIN Track t ON g.GenreId = t.GenreId
-    JOIN InvoiceLine il ON t.TrackId = il.TrackId
-GROUP BY 
-    g.Name;
-
--- Query the view
-SELECT * FROM SalesByGenre ORDER BY TotalRevenue DESC;
 ```
 
 ## Performance Optimization Techniques
@@ -1058,7 +961,7 @@ You can use the EXPLAIN statement to understand how Ignite executes your queries
 
 ```sql
 -- Get the execution plan for a complex query
-EXPLAIN SELECT 
+EXPLAIN PLAN FOR SELECT 
     c.FirstName || ' ' || c.LastName AS CustomerName,
     COUNT(DISTINCT i.InvoiceId) AS InvoiceCount,
     SUM(i.Total) AS TotalSpent
