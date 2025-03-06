@@ -206,6 +206,6 @@ For production deployments, you might want to customize several aspects:
 * Set up node attributes for better resource management
 * Configure additional security settings
 
-Refer to the [GridGain Control Center documentation](https://www.gridgain.com/products/control-center) for more advanced configuration options and best practices.
+Refer to the [GridGain Control Center documentation](https://www.gridgain.com/docs/control-center/latest/overview) for more advanced configuration options and best practices.
 
 With this setup, you now have a local Apache Ignite 3 cluster that's fully monitored and manageable through the GridGain Control Center web interface.
