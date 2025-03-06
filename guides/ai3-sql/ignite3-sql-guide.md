@@ -917,7 +917,9 @@ ORDER BY
 
 ### Schema Modification
 
-In a production environment, you may need to modify your schema over time. Ignite SQL supports standard DDL operations for this purpose:
+In a production environment **using GridGain 9**, you may need to modify your schema over time. Ignite SQL supports standard DDL operations for this purpose:
+
+> **Note**: Function defaults are not supported in Apache Ignite 3 but are available in GridGain 9
 
 ```sql
 -- Add a new column to the Customer table
