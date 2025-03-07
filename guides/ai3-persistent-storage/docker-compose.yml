@@ -1,0 +1,42 @@
+name: ignite3-rocks
+
+x-ignite-def: &ignite-def
+  image: apacheignite/ignite:3.0.0
+  environment:
+    JVM_MAX_MEM: "4g"
+    JVM_MIN_MEM: "4g"
+    IGNITE_CONFIG: "/opt/ignite/config/node-config.conf"
+
+services:
+  node1:
+    <<: *ignite-def
+    command: --node-name node1
+    ports:
+      - "10300:10300"
+      - "10800:10800"
+    volumes:
+      - ./ignite-config:/opt/ignite/config
+      - ignite-data1:/opt/ignite/data
+  node2:
+    <<: *ignite-def
+    command: --node-name node2
+    ports:
+      - "10301:10300"
+      - "10801:10800"
+    volumes:
+      - ./ignite-config:/opt/ignite/config
+      - ignite-data2:/opt/ignite/data
+  node3:
+    <<: *ignite-def
+    command: --node-name node3
+    ports:
+      - "10302:10300"
+      - "10802:10800"
+    volumes:
+      - ./ignite-config:/opt/ignite/config
+      - ignite-data3:/opt/ignite/data
+
+volumes:
+  ignite-data1:
+  ignite-data2:
+  ignite-data3:
