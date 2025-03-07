@@ -175,15 +175,87 @@ RocksDB is a high-performance embedded database designed for fast storage. In Ig
 
 Unlike checkpoint-based engines, RocksDB continuously writes data in an append-only manner, making it resilient to crashes while maintaining high write throughput.
 
-## Performance Considerations
+## Data Eviction in Ignite 3
 
-When using RocksDB persistent storage, consider the following:
+### Understanding Memory Management and Eviction
 
-**Write Buffer Size** - Increasing the write buffer size improves write performance at the cost of higher memory usage
-**Disk Type** - SSDs provide significantly better performance than HDDs for RocksDB
-**Shard Configuration** - Properly configured shards (numShardBits) can improve concurrent access performance
-**Node Redundancy** - Configure appropriate replica count to ensure data availability when nodes fail
-**Compaction Settings** - For advanced tuning, RocksDB compaction settings can be adjusted for specific workloads
+Even with persistent storage like RocksDB, Apache Ignite 3 still keeps frequently accessed data in memory for better performance. When memory resources become constrained, Ignite uses eviction policies to determine which data should be removed from memory (but not from disk).
+
+### Eviction Basics
+
+Eviction is primarily configured at the storage profile level. While our focus has been on RocksDB-based persistent storage, understanding eviction is important for optimizing the memory utilization of your cluster.
+
+Based on the available documentation, eviction appears to work as follows:
+
+**Eviction Modes**:
+
+- `DISABLED` - No eviction occurs (default)
+- `RANDOM_LRU` - Combination of random selection with least recently used algorithm
+- `RANDOM_2_LRU` - Enhanced version of RANDOM_LRU that samples two entries and evicts the least recently used one
+- `RANDOM` - Simple random selection of entries to evict
+
+**Eviction Threshold**:
+The default threshold is `0.9` (90%), meaning eviction starts when memory usage reaches 90% of the allocated maximum. This parameter helps prevent out-of-memory situations by proactively managing memory usage.
+
+### Configuring Eviction with RocksDB
+
+While the RocksDB engine is focused on persistent storage, memory management remains important. Here's how you might configure eviction with RocksDB:
+
+```json
+{
+  "ignite": {
+    "storage": {
+      "profiles": [
+        {
+          "name": "rocks_with_eviction",
+          "engine": "rocksDb",
+          "size": 268435456,
+          "writeBufferSize": 67108864,
+          "numShardBits": 4,
+          "evictionMode": "RANDOM_2_LRU",
+          "evictionThreshold": 0.85
+        }
+      ]
+    }
+  }
+}
+```
+
+This configuration:
+
+- Creates a RocksDB storage profile with eviction enabled
+- Uses the RANDOM_2_LRU algorithm for better selection of entries to evict
+- Sets the eviction threshold to 85%, starting eviction earlier than the default
+
+### Balancing Memory and Disk Operations
+
+With RocksDB storage, there's an important interplay between:
+
+**In-Memory Caching**: Keeping frequently accessed data in RAM for fast access
+**Persistent Storage**: Maintaining all data on disk for durability
+**Eviction Process**: Moving less frequently used data out of memory while preserving it on disk
+
+The eviction policy you choose affects:
+
+- Read performance (more aggressive eviction means more disk reads)
+- Memory footprint (less aggressive eviction leads to higher memory usage)
+- Overall throughput (balancing memory and disk operations)
+
+### Monitoring Eviction
+
+While specific monitoring tools aren't detailed in the documentation provided, you should watch for:
+
+**Memory Usage**: Monitor the memory utilization of your Ignite nodes
+**Eviction Rates**: Track how frequently data is being evicted from memory
+**Cache Hit Ratios**: Measure how often requested data is found in memory vs. disk
+
+### Best Practices (Based on Limited Information)
+
+**Match Eviction to Workload**: For read-heavy workloads with repeated access patterns, consider RANDOM_LRU or RANDOM_2_LRU
+**Tune Threshold**: Starting eviction earlier (lower threshold) provides a smoother performance profile but might increase disk reads
+**Storage Engine Consideration**: Remember that RocksDB is optimized for writing - your eviction strategy should complement this strength
+
+It's important to note that this section is based on limited information from the provided documentation. For production deployments, consulting the full Apache Ignite 3 documentation or seeking expert advice would be recommended.
 
 ## Implementing Persistence for Docker-Based Chinook Database
 
