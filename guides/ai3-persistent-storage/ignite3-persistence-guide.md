@@ -2,11 +2,26 @@
 
 ## Introduction
 
-Apache Ignite 3 provides robust persistent storage capabilities that allow your data to survive system restarts and crashes while maintaining high performance. This guide will walk you through the basics of setting up and using Ignite's RocksDB-based persistent storage with the Chinook database in a Docker-based environment.
+### About this Guide
 
-## Persistence Fundamentals
+This guide will walk you through the basics of setting up and using Apache Ignite 3's RocksDB-based persistent storage with the Chinook database in a Docker-based environment.
 
-### What is Ignite Persistence?
+### Prerequisites
+
+Before starting, ensure you have:
+
+- Docker and Docker Compose installed
+- Basic SQL knowledge
+- Terminal or command line access
+- At least 8GB of free RAM for the Ignite cluster
+
+### What is Apache Ignite 3?
+
+Apache Ignite 3 is a distributed database platform that provides high-performance, in-memory computing capabilities with optional persistence. It allows for horizontal scaling and offers SQL support for data operations.
+
+## Understanding Ignite Persistence
+
+### Persistence Architecture
 
 Ignite Persistence is designed to provide quick and responsive persistent storage. When using persistent storage:
 
@@ -17,20 +32,16 @@ Ignite Persistence is designed to provide quick and responsive persistent storag
 
 This architecture combines the performance benefits of in-memory computing with the durability of disk-based storage.
 
-### Storage Types
+### Storage Engine Types
 
-Ignite 3 provides multiple storage options:
-
-**Persistent Storage** - Data is stored on disk and survives cluster restarts
+#### Persistent Storage Options
 
 - **AIPerist Engine** - Default persistent storage engine with checkpointing
 - **RocksDB Engine** - LSM-tree based persistent storage optimized for write-heavy workloads
 
-**Volatile Storage** - Data is stored only in RAM and is lost on cluster shutdown
+#### Volatile Storage Options
 
 - **AIMem Engine** - In-memory storage with no persistence
-
-## Setting Up Persistent Storage
 
 ### Storage Profiles
 
@@ -41,41 +52,22 @@ Each storage profile has specific properties depending on the engine type, but a
 - **name** - A unique identifier for the profile
 - **engine** - The storage engine to use
 
-### Basic Configuration Steps
+### Distribution Zones
 
-Here's how to set up persistent storage in Apache Ignite 3:
+Distribution zones control how data is distributed across the cluster and which storage profiles to use. They allow you to:
 
-- **Configure the Storage Engine**: Define the storage engine parameters
-- **Create Storage Profile**: Define profiles that use the configured storage engines
-- **Assign Profiles to Distribution Zones**: Link your storage profiles to distribution zones
-- **Create Tables in These Zones**: Tables created in these zones will use the persistent storage
+- Control the number of data replicas
+- Specify which nodes can store data
+- Define how data is partitioned
+- Assign storage profiles to determine persistence type
 
-## Using Storage Profiles with Distribution Zones
+## Setting Up a Persistent Ignite Cluster
 
-After defining storage profiles, you need to assign them to distribution zones:
+### Docker Environment Configuration
 
-```sql
-CREATE ZONE RocksDBZone WITH replicas=2, storage_profiles='rocksProfile';
-CREATE ZONE InMemoryZone WITH replicas=2, storage_profiles='aimemory';
-```
+We'll use Docker Compose to create a multi-node Ignite cluster with persistent storage.
 
-Then, when creating tables, specify the zone to determine the storage type:
-
-```sql
--- This table will use RocksDB persistent storage
-CREATE TABLE PersistentData (
-    id INT PRIMARY KEY,
-    value VARCHAR
-) ZONE RocksDBZone;
-
--- This table will use in-memory storage only
-CREATE TABLE VolatileData (
-    id INT PRIMARY KEY,
-    value VARCHAR
-) ZONE InMemoryZone;
-```
-
-## Docker Cluster with Persistence
+### Creating the Docker Compose File
 
 Create a `docker-compose.yml` file in your working directory:
 
@@ -140,93 +132,66 @@ configs:
 
 The `ignite` configuration in the Docker Compose file:
 
-- Adds a storage profile named `rocksDbProfile` that uses the RocksDB engine to the default node configuration
-- Sets the storage size to 256MB (268435456 bytes)
+- Adds a storage profile named `rocksDbProfile` that uses the RocksDB engine
+- Sets the storage size to 256MB (268435456 bytes) by default
 - Stores persistent data in the `data` directory where docker was run
 
-### Start the Cluster
+### Starting the Cluster
+
+Run the following command to start the Ignite cluster:
 
 ```bash
 docker-compose up -d
 ```
 
-### Verify the Cluster
+### Verifying Cluster Deployment
 
-In the same directory as your `docker-compose.yml` file, run `docker compose ps` and see that the nodes are "running".
+Check that all nodes are running:
 
 ```shell
 docker compose ps
+```
+
+You should see output similar to:
+
+```
 NAME              IMAGE                       COMMAND                  SERVICE   CREATED         STATUS         PORTS
 ignite3-node1-1   apacheignite/ignite:3.0.0   "docker-entrypoint.s…"   node1     6 minutes ago   Up 6 minutes   0.0.0.0:10300->10300/tcp, 3344/tcp, 0.0.0.0:10800->10800/tcp
 ignite3-node2-1   apacheignite/ignite:3.0.0   "docker-entrypoint.s…"   node2     6 minutes ago   Up 6 minutes   3344/tcp, 0.0.0.0:10301->10300/tcp, 0.0.0.0:10801->10800/tcp
 ignite3-node3-1   apacheignite/ignite:3.0.0   "docker-entrypoint.s…"   node3     6 minutes ago   Up 6 minutes   3344/tcp, 0.0.0.0:10302->10300/tcp, 0.0.0.0:10802->10800/tcp
 ```
 
-Verify the docker network configuration with `docker network ls` and see the `ignite3_default` network.
+Verify the Docker network:
 
 ```shell
 docker network ls
-NETWORK ID     NAME              DRIVER    SCOPE
-99728e97d2f6   bridge            bridge    local
-b55ac8b4a057   host              host      local
-8f56c9a9e047   ignite3_default   bridge    local
-2a046c74a6bd   none              null      local
 ```
 
-Check the volumes using `docker volume ls`.
-
-```shell
-docker volume ls
-DRIVER    VOLUME NAME
-local     ignite3_ignite-data1
-local     ignite3_ignite-data2
-local     ignite3_ignite-data3
-```
-
-Inspect the data directory with the `tree` command:
+Check the structure of the data directory:
 
 ```shell
 tree -L 2 data
-data
-├── node1
-│   ├── cmg
-│   ├── metastorage
-│   ├── partitions
-│   ├── vault
-│   └── volatile-log-spillout
-├── node2
-│   ├── cmg
-│   ├── metastorage
-│   ├── partitions
-│   ├── vault
-│   └── volatile-log-spillout
-└── node3
-    ├── cmg
-    ├── metastorage
-    ├── partitions
-    ├── vault
-    └── volatile-log-spillout
 ```
 
-### Connect to and Initialize the Cluster
+## Configuring Persistent Storage
 
-In your terminal, run:
+### Connecting to the Cluster
+
+Connect to the Ignite CLI:
 
 ```bash
 docker run -it --rm --net ignite3_default apacheignite/ignite3 cli
 ```
 
-This starts an interactive CLI container connected to the same Docker network as our cluster and mounts a volume containing the sql files for the Chinook Database. When prompted, connect to the default node by entering `n`.
-
-Connect to `node1` of the cluster:
+Connect to the first node in the cluster:
 
 ```shell
 connect http://node1:10300
 ```
 
-You should see a message that you're connected to http://node1:10300 and possibly a note that the cluster is not initialized.
+### Initializing the Cluster
 
-Before we can use the cluster, we need to initialize it:
+Before using the cluster, initialize it:
 
 ```shell
 cluster init --name=ignite3 --metastorage-group=node1,node2,node3
@@ -234,73 +199,39 @@ cluster init --name=ignite3 --metastorage-group=node1,node2,node3
 
 You should see the message "Cluster was initialized successfully".
 
-```shell
-[node1]> cluster init --name=ignite3 --metastorage-group=node1,node2,node3
-Cluster was initialized successfully
-```
+### Examining Storage Profiles
 
-### Create Persistent Distribution Zones
-
-The Ignite configuration that we set in `docker compose` created a new storage profile that we will use to store data.
-
-You can verify the storage profile with `node config show ignite.storage`:
+Verify the configured storage profiles:
 
 ```shell
-[node1]> node config show ignite.storage
-engines {
-    aimem {
-        pageSize=16384
-    }
-    aipersist {
-        checkpoint {
-            checkpointDelayMillis=200
-            checkpointThreads=4
-            compactionThreads=4
-            interval=180000
-            intervalDeviation=40
-            logReadLockThresholdTimeout=0
-            readLockTimeout=10000
-            useAsyncFileIoFactory=true
-        }
-        pageSize=16384
-    }
-    rocksdb {
-        flushDelayMillis=100
-    }
-}
-profiles=[
-    {
-        engine=rocksdb
-        name=rocksDbProfile
-        size=268435456
-        writeBufferSize=67108864
-    },
-    {
-        engine=aipersist
-        name=default
-        replacementMode=CLOCK
-        size=3138717286
-    }
-]
+node config show ignite.storage
 ```
 
-We will use the `rocksDbProfile` to store our Chinook Record Store data.
+You should see output showing the `rocksDbProfile` configuration along with the default profiles.
 
-In the SQL CLI, enter the `sql-cli` by typing `sql` and create a distribution zone that uses our RocksDB storage profile:
+### Creating Distribution Zones for Persistence
+
+Enter the SQL CLI:
+
+```shell
+sql
+```
+
+Create a distribution zone that uses our RocksDB storage profile:
 
 ```sql
 CREATE ZONE ChinookRocksDB WITH replicas=2, storage_profiles='rocksDbProfile';
 ```
 
-```shell
-[node1]> sql 
-sql-cli> CREATE ZONE ChinookRocksDB WITH replicas=2, storage_profiles='rocksDbProfile';
-Updated 0 rows.
-```
+## Building the Chinook Database with Persistence
 
-### Create Persistent Chinook Tables
+### About the Chinook Database
 
-Let's create the Chinook database tables in the RocksDB persistent zone:
+The Chinook database represents a digital media store with tables for artists, albums, tracks, and more. It's commonly used as a sample database for demonstrating database features.
+
+### Creating Persistent Database Tables
+
+Create the necessary tables for the Chinook database using our RocksDB persistent zone:
 
 ```sql
 -- Create Artist table
@@ -315,7 +246,8 @@ CREATE TABLE Album (
     AlbumId INT NOT NULL,
     Title VARCHAR(160) NOT NULL,
     ArtistId INT NOT NULL,
-    PRIMARY KEY (AlbumId, ArtistId)
+    PRIMARY KEY (AlbumId, ArtistId),
+    CONSTRAINT fk_artist FOREIGN KEY (ArtistId) REFERENCES Artist(ArtistId)
 ) COLOCATE BY (ArtistId) ZONE ChinookRocksDB;
 
 -- Create Genre table
@@ -323,6 +255,13 @@ CREATE TABLE Genre (
     GenreId INT NOT NULL,
     Name VARCHAR(120),
     PRIMARY KEY (GenreId)
+) ZONE ChinookRocksDB;
+
+-- Create MediaType table
+CREATE TABLE MediaType (
+    MediaTypeId INT NOT NULL,
+    Name VARCHAR(120),
+    PRIMARY KEY (MediaTypeId)
 ) ZONE ChinookRocksDB;
 
 -- Create Track table
@@ -336,15 +275,23 @@ CREATE TABLE Track (
     Milliseconds INT NOT NULL,
     Bytes INT,
     UnitPrice NUMERIC(10,2) NOT NULL,
-    PRIMARY KEY (TrackId, AlbumId)
+    PRIMARY KEY (TrackId, AlbumId),
+    CONSTRAINT fk_album FOREIGN KEY (AlbumId) REFERENCES Album(AlbumId),
+    CONSTRAINT fk_mediatype FOREIGN KEY (MediaTypeId) REFERENCES MediaType(MediaTypeId),
+    CONSTRAINT fk_genre FOREIGN KEY (GenreId) REFERENCES Genre(GenreId)
 ) COLOCATE BY (AlbumId) ZONE ChinookRocksDB;
 ```
 
-### Load Chinook Data
+### Loading Sample Data
 
-Let's insert some sample data into our tables:
+Insert sample data into the tables:
 
 ```sql
+-- Insert data into MediaType table
+INSERT INTO MediaType (MediaTypeId, Name) VALUES
+(1, 'MPEG audio file'),
+(2, 'Protected AAC audio file');
+
 -- Insert data into Artist table
 INSERT INTO Artist (ArtistId, Name) VALUES
 (1, 'AC/DC'),
@@ -372,59 +319,88 @@ INSERT INTO Genre (GenreId, Name) VALUES
 -- Insert data into Track table
 INSERT INTO Track (TrackId, Name, AlbumId, MediaTypeId, GenreId, Composer, Milliseconds, Bytes, UnitPrice) VALUES
 (1, 'For Those About To Rock (We Salute You)', 1, 1, 1, 'Angus Young, Malcolm Young, Brian Johnson', 343719, 11170334, 0.99),
-(2, 'Balls to the Wall', 2, 2, 1, 'U. Dirkschneider', 342562, 5510424, 0.99),
-(3, 'Fast As a Shark', 3, 2, 1, 'F. Baltes, S. Kaufman', 230619, 3990994, 0.99),
-(4, 'Restless and Wild', 3, 2, 1, 'F. Baltes, R.A. Smith-Diesel', 252051, 4331779, 0.99),
+(2, 'Balls to the Wall', 2, 2, 1, 'U. Dirkschneider, W. Hoffmann, H. Frank, P. Baltes, S. Kaufmann, G. Hoffmann', 342562, 5510424, 0.99),
+(3, 'Fast As a Shark', 3, 2, 1, 'F. Baltes, S. Kaufman, U. Dirkscneider & W. Hoffman', 230619, 3990994, 0.99),
+(4, 'Restless and Wild', 3, 2, 1, 'F. Baltes, R.A. Smith-Diesel, S. Kaufman, U. Dirkscneider & W. Hoffman', 252051, 4331779, 0.99),
 (5, 'Princess of the Dawn', 3, 2, 1, 'Deaffy & R.A. Smith-Diesel', 375418, 6290521, 0.99);
 ```
 
-### Verify Persistence Works
+### Querying the Database
 
-Now let's test that our data persists through a cluster restart:
-
-Query the data to ensure it's there:
+Test that your data was inserted correctly:
 
 ```sql
-SELECT a.Name as Artist, al.Title as Album, t.Name as Track
+SELECT a.Name AS Artist, al.Title AS Album, t.Name AS Track
 FROM Track t
 JOIN Album al ON t.AlbumId = al.AlbumId
 JOIN Artist a ON al.ArtistId = a.ArtistId
 WHERE t.AlbumId = 1;
 ```
 
-Exit the SQL CLI and restart the containers:
+## Testing Persistence Capabilities
+
+### Verifying Data Before Restart
+
+Perform additional queries to ensure your data is properly stored:
+
+```sql
+-- Count tracks by genre
+SELECT g.Name AS Genre, COUNT(t.TrackId) AS TrackCount
+FROM Track t
+JOIN Genre g ON t.GenreId = g.GenreId
+GROUP BY g.Name;
+
+-- Check all albums by artist
+SELECT a.Name AS Artist, COUNT(al.AlbumId) AS AlbumCount
+FROM Album al
+JOIN Artist a ON al.ArtistId = a.ArtistId
+GROUP BY a.Name;
+```
+
+### Restarting the Cluster
+
+Exit the SQL CLI with `exit` command, then exit the main CLI (also with `exit`).
+
+Restart the Docker containers:
 
 ```bash
-exit
 docker-compose down
 docker-compose up -d
 ```
 
-Reconnect to the CLI to the cluster and enter the `sql-cli` again and run the same query:
+### Verifying Data After Restart
+
+Reconnect to the CLI:
+
+```bash
+docker run -it --rm --net ignite3_default apacheignite/ignite3 cli
+connect http://node1:10300
+```
+
+The cluster is already initialized, so you can go directly to the SQL CLI:
+
+```shell
+sql
+```
+
+Run the same query to verify the data persisted through the restart:
 
 ```sql
-SELECT a.Name as Artist, al.Title as Album, t.Name as Track
+SELECT a.Name AS Artist, al.Title AS Album, t.Name AS Track
 FROM Track t
 JOIN Album al ON t.AlbumId = al.AlbumId
 JOIN Artist a ON al.ArtistId = a.ArtistId
 WHERE t.AlbumId = 1;
 ```
 
-The data should still be present, demonstrating that our persistent storage is working correctly.
-
 ## Wrap Up
+
+### Summary
 
 Apache Ignite 3 with RocksDB persistent storage provides a powerful way to maintain data durability while leveraging in-memory computing performance. RocksDB is particularly well-suited for write-intensive workloads, making it an excellent choice for many production environments.
 
-This guide demonstrated how to:
+### Additional Resources
 
-- Configure RocksDB persistence for a Docker-based Ignite cluster
-- Create and use RocksDB storage profiles
-- Set up distribution zones with RocksDB persistence enabled
-- Create Chinook database tables with RocksDB persistence
-- Test persistence through cluster restarts and node failures
-- Explore RocksDB-specific features through SQL CLI
-
-RocksDB's LSM-tree architecture makes it particularly effective for applications with high write throughput requirements, while still providing good read performance. By correctly configuring storage profiles and distribution zones, you can balance performance and persistence requirements for your specific use case.
-
-For more advanced configurations and optimizations, refer to the Apache Ignite 3 documentation.
+- [Apache Ignite 3 Official Documentation](https://ignite.apache.org/docs/latest/)
+- [RocksDB Documentation](https://rocksdb.org/docs/)
+- [Chinook Database Project](https://github.com/lerocha/chinook-database)
