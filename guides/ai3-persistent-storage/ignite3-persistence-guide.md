@@ -56,6 +56,7 @@ After defining storage profiles, you need to assign them to distribution zones:
 
 ```sql
 CREATE ZONE RocksDBZone WITH replicas=2, storage_profiles='rocksProfile';
+CREATE ZONE InMemoryZone WITH replicas=2, storage_profiles='aimemory';
 ```
 
 Then, when creating tables, specify the zone to determine the storage type:
