@@ -46,134 +46,16 @@ Each storage profile has specific properties depending on the engine type, but a
 Here's how to set up persistent storage in Apache Ignite 3:
 
 - **Configure the Storage Engine**: Define the storage engine parameters
-- **Create Storage Profiles**: Define profiles that use the configured storage engines
+- **Create Storage Profile**: Define profiles that use the configured storage engines
 - **Assign Profiles to Distribution Zones**: Link your storage profiles to distribution zones
 - **Create Tables in These Zones**: Tables created in these zones will use the persistent storage
-
-## Configuration Examples
-
-### AIPerist Storage (Default Persistent Engine)
-
-The AIPerist engine is the default persistent storage option with checkpointing capabilities. Checkpointing is the process of copying dirty pages from RAM to partition files on disk.
-
-```json
-{
-  "ignite": {
-    "storage": {
-      "engines": {
-        "aipersist": {
-          "checkpoint": {
-            "checkpointDelayMillis": 200,
-            "checkpointThreads": 4,
-            "compactionThreads": 4,
-            "frequency": 180000,
-            "frequencyDeviation": 40,
-            "logReadLockThresholdTimeout": 0,
-            "readLockTimeout": 10000,
-            "useAsyncFileIoFactory": true
-          },
-          "pageSize": 16384
-        },
-        "profiles": [
-          {
-            "engine": "aipersist",
-            "name": "default",
-            "replacementMode": "CLOCK",
-            "size": 268435456
-          }
-        ]
-      }
-    }
-  }
-}
-```
-
-This configuration:
-
-- Defines a storage engine called `aipersist` with a checkpoint delay of 100 milliseconds
-- Creates a storage profile named `clock_aipersist` that uses the `aipersist` engine
-- Configures a `CLOCK` replacement policy for memory management. Other replacement policy options are `RANDOM_LRU`, and `SEGMENTED_LRU`.
-
-### RocksDB Storage (Write-Optimized Persistence)
-
-RocksDB is a persistent storage engine based on LSM tree, which performs well with high write loads.
-
-```json
-{
-  "ignite": {
-    "storage": {
-      "engines": {
-        "rocksdb": {
-          "flushDelayMillis": 100
-        },
-        "profiles": [
-          {
-            "engine": "rocksdb",
-            "name": "default_rocksdb",
-            "size": 268435456,
-            "writeBufferSize": 67108864
-          }
-        ]
-      }
-    }
-  }
-}
-```
-
-This configuration:
-
-- Creates a storage profile named `rocks_profile` that uses the RocksDB engine
-- Sets the storage size to approximately 2.5MB
-- Configures a write buffer size of 64MB
-- Sets up 16 shards (2^4) for the cache
-
-### Volatile Storage (In-Memory Only)
-
-For non-persistent in-memory storage:
-
-```json
-{
-  "ignite": {
-    "storage": {
-      "engines": {
-        "aimem": {
-          "pageSize": 16384
-        },
-        "profiles": [
-          {
-            "engine": "aimem",
-            "name": "default_aimem",
-            "emptyPagesPoolSize": 100,
-            "eviction": {
-              "batchSize": 200,
-              "interval": 60000,
-              "lwmThreshold": 1000,
-              "lwmUpdateInterval": 60000,
-              "mode": "DISABLED",
-              "threshold": "90%"
-            },
-            "initSize": 268435456,
-            "maxSize": 268435456
-          }
-        ]
-      }
-    }
-  }
-}
-```
-
-This configuration:
-
-- Creates a volatile storage profile that only stores data in memory
-- Data in this profile will be lost when the cluster is shut down
 
 ## Using Storage Profiles with Distribution Zones
 
 After defining storage profiles, you need to assign them to distribution zones:
 
 ```sql
-CREATE ZONE RocksDBZone WITH replicas=2, storage_profiles='rocks_profile';
-CREATE ZONE InMemoryZone WITH replicas=2, storage_profiles='aimemory';
+CREATE ZONE RocksDBZone WITH replicas=2, storage_profiles='rocksProfile';
 ```
 
 Then, when creating tables, specify the zone to determine the storage type:
@@ -192,105 +74,21 @@ CREATE TABLE VolatileData (
 ) ZONE InMemoryZone;
 ```
 
-### Understanding RocksDB Storage
+## Docker Cluster with Persistence
 
-RocksDB is a high-performance embedded database designed for fast storage. In Ignite 3, it provides:
-
-- **LSM-Tree Structure** - Uses a Log-Structured Merge-tree for efficient writes
-- **Write Optimization** - Excellent for write-heavy workloads
-- **Compaction Process** - Automatically merges and organizes data for efficient storage
-- **Persistence Guarantees** - Full data durability across server restarts
-
-Unlike checkpoint-based engines, RocksDB continuously writes data in an append-only manner, making it resilient to crashes while maintaining high write throughput.
-
-## Data Eviction in Ignite 3
-
-### Understanding Memory Management and Eviction
-
-Even with persistent storage like RocksDB, Apache Ignite 3 still keeps frequently accessed data in memory for better performance. When memory resources become constrained, Ignite uses eviction policies to determine which data should be removed from memory (but not from disk).
-
-### Eviction Basics
-
-Eviction is primarily configured at the storage profile level. While our focus has been on RocksDB-based persistent storage, understanding eviction is important for optimizing the memory utilization of your cluster.
-
-Based on the available documentation, eviction appears to work as follows:
-
-**Eviction Modes**:
-
-- `DISABLED` - No eviction occurs (default)
-- `RANDOM_LRU` - Combination of random selection with least recently used algorithm
-- `RANDOM_2_LRU` - Enhanced version of RANDOM_LRU that samples two entries and evicts the least recently used one
-- `RANDOM` - Simple random selection of entries to evict
-
-**Eviction Threshold**:
-The default threshold is `0.9` (90%), meaning eviction starts when memory usage reaches 90% of the allocated maximum. This parameter helps prevent out-of-memory situations by proactively managing memory usage.
-
-### Configuring Eviction with RocksDB
-
-While the RocksDB engine is focused on persistent storage, memory management remains important. Here's how you might configure eviction with RocksDB:
-
-```json
-{
-  "ignite": {
-    "storage": {
-      "profiles": [
-        {
-          "name": "rocks_with_eviction",
-          "engine": "rocksDb",
-          "size": 268435456,
-          "writeBufferSize": 67108864,
-          "numShardBits": 4,
-          "evictionMode": "RANDOM_2_LRU",
-          "evictionThreshold": 0.85
-        }
-      ]
-    }
-  }
-}
-```
-
-This configuration:
-
-- Creates a RocksDB storage profile with eviction enabled
-- Uses the `RANDOM_2_LRU` algorithm for better selection of entries to evict
-- Sets the eviction threshold to 85%, starting eviction earlier than the default
-
-### Balancing Memory and Disk Operations
-
-With RocksDB storage, there's an important interplay between:
-
-- **In-Memory Caching**: Keeping frequently accessed data in RAM for fast access
-- **Persistent Storage**: Maintaining all data on disk for durability
-- **Eviction Process**: Moving less frequently used data out of memory while preserving it on disk
-
-The eviction policy you choose affects:
-
-- Read performance (more aggressive eviction means more disk reads)
-- Memory footprint (less aggressive eviction leads to higher memory usage)
-- Overall throughput (balancing memory and disk operations)
-
-## Implementing Persistence for Docker-Based Chinook Database
-
-Now let's apply what we've learned to set up persistent storage for a Docker-based Apache Ignite 3 cluster running the Chinook database.
-
-### Prerequisites
-
-- Docker and Docker Compose installed
-- Basic knowledge of SQL and Ignite 3 concepts
-
-### Configure Docker Volumes for Persistence
-
-First, we need to modify our Docker configuration to ensure data is persisted between container restarts:
+Create a `docker-compose.yml` file in your working directory:
 
 ```yaml
-name: ignite3-rocks
+name: ignite3
 
 x-ignite-def: &ignite-def
   image: apacheignite/ignite:3.0.0
   environment:
     JVM_MAX_MEM: "4g"
     JVM_MIN_MEM: "4g"
-    IGNITE_CONFIG: "/opt/ignite/config/node-config.conf"
+  configs:
+    - source: node_config
+      target: /opt/ignite/etc/ignite-config.conf
 
 services:
   node1:
@@ -300,8 +98,8 @@ services:
       - "10300:10300"
       - "10800:10800"
     volumes:
-      - ./ignite-config:/opt/ignite/config
-      - ignite-data1:/opt/ignite/data
+      - ./data/node1:/opt/ignite/work
+
   node2:
     <<: *ignite-def
     command: --node-name node2
@@ -309,8 +107,8 @@ services:
       - "10301:10300"
       - "10801:10800"
     volumes:
-      - ./ignite-config:/opt/ignite/config
-      - ignite-data2:/opt/ignite/data
+      - ./data/node2:/opt/ignite/work
+
   node3:
     <<: *ignite-def
     command: --node-name node3
@@ -318,55 +116,32 @@ services:
       - "10302:10300"
       - "10802:10800"
     volumes:
-      - ./ignite-config:/opt/ignite/config
-      - ignite-data3:/opt/ignite/data
+      - ./data/node3:/opt/ignite/work
 
-volumes:
-  ignite-data1:
-  ignite-data2:
-  ignite-data3:
-```
-
-This configuration creates Docker volumes for persisting Ignite data and mounts the configuration directory.
-
-### Create Ignite Configuration with RocksDB Persistence
-
-In Ignite 3, you can create and maintain configuration in either HOCON or JSON. Create an `node-config.conf` file in your `./ignite-config` directory:
-
-```json
-{
-  "ignite": {
-    "network": {
-      "port": 3344,
-      "nodeFinder": { 
-        "netClusterNodes": [
-          "node1:3344",
-          "node2:3344",
-          "node3:3344"
-        ]
-      }
-    },
-    "storage": {
-      "profiles": [
-        {
-          "name": "chinook_rocks",
-          "engine": "rocksDb",
-          "size": 268435456,
-          "writeBufferSize": 67108864,
-          "numShardBits": 4
+configs:
+  node_config:
+    content: |
+      ignite {
+        network {
+          port: 3344
+          nodeFinder.netClusterNodes = ["node1:3344", "node2:3344", "node3:3344"]
         }
-      ]
-    }
-  }
-}
+        "storage": {
+          "profiles": [
+            {
+              name: "rocksDbProfile"
+              engine: "rocksdb"
+            }
+          ]
+        }
+      }
 ```
 
-This configuration:
+The `ignite` configuration in the Docker Compose file:
 
-- Adds a storage profile named `chinook_rocks` that uses the RocksDB engine to the default node configuration
+- Adds a storage profile named `rocksDbProfile` that uses the RocksDB engine to the default node configuration
 - Sets the storage size to 256MB (268435456 bytes)
-- Configures a write buffer size of 64MB, which helps optimize write performance
-- Sets up 16 shards (2^4) for the cache to improve concurrent access
+- Stores persistent data in the `data` directory where docker was run
 
 ### Start the Cluster
 
@@ -376,35 +151,60 @@ docker-compose up -d
 
 ### Verify the Cluster
 
-In the same directory as your docker-compose.yml file, run `docker compose ps` to see that the nodes are "running".
+In the same directory as your `docker-compose.yml` file, run `docker compose ps` and see that the nodes are "running".
 
 ```shell
 docker compose ps
-NAME                    IMAGE                       COMMAND                  SERVICE   CREATED         STATUS         PORTS
-ignite3-rocks-node1-1   apacheignite/ignite:3.0.0   "docker-entrypoint.s…"   node1     5 minutes ago   Up 4 minutes   0.0.0.0:10300->10300/tcp, 3344/tcp, 0.0.0.0:10800->10800/tcp
-ignite3-rocks-node2-1   apacheignite/ignite:3.0.0   "docker-entrypoint.s…"   node2     5 minutes ago   Up 4 minutes   3344/tcp, 0.0.0.0:10301->10300/tcp, 0.0.0.0:10801->10800/tcp
-ignite3-rocks-node3-1   apacheignite/ignite:3.0.0   "docker-entrypoint.s…"   node3     5 minutes ago   Up 4 minutes   3344/tcp, 0.0.0.0:10302->10300/tcp, 0.0.0.0:10802->10800/tcp
+NAME              IMAGE                       COMMAND                  SERVICE   CREATED         STATUS         PORTS
+ignite3-node1-1   apacheignite/ignite:3.0.0   "docker-entrypoint.s…"   node1     6 minutes ago   Up 6 minutes   0.0.0.0:10300->10300/tcp, 3344/tcp, 0.0.0.0:10800->10800/tcp
+ignite3-node2-1   apacheignite/ignite:3.0.0   "docker-entrypoint.s…"   node2     6 minutes ago   Up 6 minutes   3344/tcp, 0.0.0.0:10301->10300/tcp, 0.0.0.0:10801->10800/tcp
+ignite3-node3-1   apacheignite/ignite:3.0.0   "docker-entrypoint.s…"   node3     6 minutes ago   Up 6 minutes   3344/tcp, 0.0.0.0:10302->10300/tcp, 0.0.0.0:10802->10800/tcp
 ```
 
-Verify the docker network configuration with `docker network ls` and see the `ignite3-rocks_default` network.
+Verify the docker network configuration with `docker network ls` and see the `ignite3_default` network.
 
 ```shell
 docker network ls
-NETWORK ID     NAME                    DRIVER    SCOPE
-0c021afd4a5c   bridge                  bridge    local
-b55ac8b4a057   host                    host      local
-236a32989a8f   ignite3-rocks_default   bridge    local
-2a046c74a6bd   none                    null      local
+NETWORK ID     NAME              DRIVER    SCOPE
+99728e97d2f6   bridge            bridge    local
+b55ac8b4a057   host              host      local
+8f56c9a9e047   ignite3_default   bridge    local
+2a046c74a6bd   none              null      local
 ```
 
-And check the volumes using `docker volume ls`.
+Check the volumes using `docker volume ls`.
 
 ```shell
 docker volume ls
 DRIVER    VOLUME NAME
-local     ignite3-rocks_ignite-data1
-local     ignite3-rocks_ignite-data2
-local     ignite3-rocks_ignite-data3
+local     ignite3_ignite-data1
+local     ignite3_ignite-data2
+local     ignite3_ignite-data3
+```
+
+Inspect the data directory with the `tree` command:
+
+```shell
+tree -L 2 data
+data
+├── node1
+│   ├── cmg
+│   ├── metastorage
+│   ├── partitions
+│   ├── vault
+│   └── volatile-log-spillout
+├── node2
+│   ├── cmg
+│   ├── metastorage
+│   ├── partitions
+│   ├── vault
+│   └── volatile-log-spillout
+└── node3
+    ├── cmg
+    ├── metastorage
+    ├── partitions
+    ├── vault
+    └── volatile-log-spillout
 ```
 
 ### Connect to and Initialize the Cluster
@@ -412,31 +212,89 @@ local     ignite3-rocks_ignite-data3
 In your terminal, run:
 
 ```bash
-docker run -it --rm --net host apacheignite/ignite3 cli
+docker run -it --rm --net ignite3_default apacheignite/ignite3 cli
 ```
 
-This starts an interactive CLI container connected to the same Docker network as our cluster and mounts a volume containing the sql files for the Chinook Database. When prompted, connect to the default node by entering `Y` or pressing return.
+This starts an interactive CLI container connected to the same Docker network as our cluster and mounts a volume containing the sql files for the Chinook Database. When prompted, connect to the default node by entering `n`.
 
-You should see a message that you're connected to http://localhost:10300 and possibly a note that the cluster is not initialized.
+Connect to `node1` of the cluster:
+
+```shell
+connect http://node1:10300
+```
+
+You should see a message that you're connected to http://node1:10300 and possibly a note that the cluster is not initialized.
 
 Before we can use the cluster, we need to initialize it:
 
-```
+```shell
 cluster init --name=ignite3 --metastorage-group=node1,node2,node3
 ```
 
 You should see the message "Cluster was initialized successfully".
 
 ```shell
-
+[node1]> cluster init --name=ignite3 --metastorage-group=node1,node2,node3
+Cluster was initialized successfully
 ```
 
 ### Create Persistent Distribution Zones
 
-In the SQL CLI, create a distribution zone that uses our RocksDB storage profile:
+The Ignite configuration that we set in `docker compose` created a new storage profile that we will use to store data.
+
+You can verify the storage profile with `node config show ignite.storage`:
+
+```shell
+[node1]> node config show ignite.storage
+engines {
+    aimem {
+        pageSize=16384
+    }
+    aipersist {
+        checkpoint {
+            checkpointDelayMillis=200
+            checkpointThreads=4
+            compactionThreads=4
+            interval=180000
+            intervalDeviation=40
+            logReadLockThresholdTimeout=0
+            readLockTimeout=10000
+            useAsyncFileIoFactory=true
+        }
+        pageSize=16384
+    }
+    rocksdb {
+        flushDelayMillis=100
+    }
+}
+profiles=[
+    {
+        engine=rocksdb
+        name=rocksDbProfile
+        size=268435456
+        writeBufferSize=67108864
+    },
+    {
+        engine=aipersist
+        name=default
+        replacementMode=CLOCK
+        size=3138717286
+    }
+]
+```
+
+We will use the `rocksDbProfile` to store our Chinook Record Store data.
+
+In the SQL CLI, enter the `sql-cli` by typing `sql` and create a distribution zone that uses our RocksDB storage profile:
 
 ```sql
-CREATE ZONE ChinookRocksDB WITH replicas=2, storage_profiles='chinook_rocks';
+CREATE ZONE ChinookRocksDB WITH replicas=2, storage_profiles='rocksDbProfile';
+```
+
+```shell
+[node1]> sql 
+sql-cli> CREATE ZONE ChinookRocksDB WITH replicas=2, storage_profiles='rocksDbProfile';
+Updated 0 rows.
 ```
 
 ### Create Persistent Chinook Tables
@@ -529,7 +387,8 @@ Query the data to ensure it's there:
 SELECT a.Name as Artist, al.Title as Album, t.Name as Track
 FROM Track t
 JOIN Album al ON t.AlbumId = al.AlbumId
-JOIN Artist a ON al.ArtistId = a.ArtistId;
+JOIN Artist a ON al.ArtistId = a.ArtistId
+WHERE t.AlbumId = 1;
 ```
 
 Exit the SQL CLI and restart the containers:
@@ -540,146 +399,17 @@ docker-compose down
 docker-compose up -d
 ```
 
-Connect to the SQL CLI again and run the same query:
-
-```bash
-docker exec -it ignite-node1 /opt/ignite/bin/sql-cli.sh
-```
+Reconnect to the CLI to the cluster and enter the `sql-cli` again and run the same query:
 
 ```sql
 SELECT a.Name as Artist, al.Title as Album, t.Name as Track
 FROM Track t
 JOIN Album al ON t.AlbumId = al.AlbumId
-JOIN Artist a ON al.ArtistId = a.ArtistId;
+JOIN Artist a ON al.ArtistId = a.ArtistId
+WHERE t.AlbumId = 1;
 ```
 
 The data should still be present, demonstrating that our persistent storage is working correctly.
-
-### Taking a Node Out of Service and Bringing It Back
-
-One of the key benefits of persistent storage in a distributed database is maintaining data availability when nodes go offline. Let's test this feature:
-
-First, check which nodes are in the cluster:
-
-```sql
-SELECT * FROM INFORMATION_SCHEMA.NODES;
-```
-
-Now, let's take one node out of service:
-
-```bash
-# In a new terminal window, stop the second node
-docker stop ignite-node2
-```
-
-Back in the SQL CLI, verify that the node is no longer in the cluster:
-
-```sql
-SELECT * FROM INFORMATION_SCHEMA.NODES;
-```
-
-Check that our data is still accessible despite the node being down:
-
-```sql
-SELECT a.Name as Artist, al.Title as Album, t.Name as Track
-FROM Track t
-JOIN Album al ON t.AlbumId = al.AlbumId
-JOIN Artist a ON al.ArtistId = a.ArtistId;
-```
-
-You should still see all the data because we configured the distribution zone with `replicas=2`, ensuring data redundancy across nodes.
-
-Now, let's insert some new data while the node is down:
-
-```sql
-INSERT INTO Artist (ArtistId, Name) VALUES (7, 'Nirvana');
-INSERT INTO Album (AlbumId, Title, ArtistId) VALUES (7, 'Nevermind', 7);
-INSERT INTO Track (TrackId, Name, AlbumId, MediaTypeId, GenreId, Composer, Milliseconds, Bytes, UnitPrice) VALUES
-(6, 'Smells Like Teen Spirit', 7, 1, 1, 'Kurt Cobain', 301000, 9000000, 0.99);
-```
-
-Let's bring the node back online:
-
-```bash
-# In a new terminal window
-docker start ignite-node2
-```
-
-Wait a minute for the node to rejoin the cluster, then check the nodes again:
-
-```sql
-SELECT * FROM INFORMATION_SCHEMA.NODES;
-```
-
-Verify that all the data, including the newly added records, is accessible:
-
-```sql
-SELECT a.Name as Artist, al.Title as Album, t.Name as Track
-FROM Track t
-JOIN Album al ON t.AlbumId = al.AlbumId
-JOIN Artist a ON al.ArtistId = a.ArtistId;
-```
-
-This demonstrates how the persistent storage with replication ensures data availability and consistency even when nodes are temporarily unavailable.
-
-### Exploring RocksDB Persistence Features
-
-Let's explore some RocksDB persistence-related features:
-
-**Checking RocksDB-specific Storage Profile Settings**:
-
-```sql
-SELECT * FROM INFORMATION_SCHEMA.STORAGE_PROFILES 
-WHERE PROFILE_NAME = 'chinook_rocks';
-```
-
-**Testing Write Performance**:
-RocksDB is optimized for write operations. Let's insert a batch of records and see the performance:
-
-```sql
-START TRANSACTION READ WRITE;
-
--- Insert a batch of artists
-INSERT INTO Artist (ArtistId, Name) VALUES
-(8, 'Metallica'),
-(9, 'Queen'),
-(10, 'Pink Floyd'),
-(11, 'The Beatles'),
-(12, 'Led Zeppelin'),
-(13, 'The Rolling Stones'),
-(14, 'Black Sabbath'),
-(15, 'Deep Purple');
-
--- Insert corresponding albums
-INSERT INTO Album (AlbumId, Title, ArtistId) VALUES
-(8, 'Master of Puppets', 8),
-(9, 'A Night at the Opera', 9),
-(10, 'Dark Side of the Moon', 10),
-(11, 'Abbey Road', 11),
-(12, 'IV', 12),
-(13, 'Sticky Fingers', 13),
-(14, 'Paranoid', 14),
-(15, 'Machine Head', 15);
-
-COMMIT;
-```
-
-**RocksDB vs Other Storage Options**:
-
-Unlike the checkpoint-based AIPerist engine, RocksDB uses a Log-Structured Merge-tree approach, which:
-
-- Optimizes for write-heavy workloads
-- Provides better write throughput
-- May use more disk space due to its storage format
-- Periodically compacts data to maintain efficiency
-
-**Sample Performance Comparison Query**:
-
-```sql
--- Measure time to insert records
--- Use this before and after your insert operations to compare
-SELECT CURRENT_TIMESTAMP AS execution_time;
-```
 
 ## Wrap Up
 

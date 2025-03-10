@@ -138,3 +138,6 @@ application.properties
 application.yml
 .env
 credentials.json
+
+# Persistent Storage Directories
+data/

@@ -1,11 +1,13 @@
-name: ignite3-rocks
+name: ignite3
 
 x-ignite-def: &ignite-def
   image: apacheignite/ignite:3.0.0
   environment:
     JVM_MAX_MEM: "4g"
     JVM_MIN_MEM: "4g"
-    IGNITE_CONFIG: "/opt/ignite/config/node-config.conf"
+  configs:
+    - source: node_config
+      target: /opt/ignite/etc/ignite-config.conf
 
 services:
   node1:
@@ -15,8 +17,8 @@ services:
       - "10300:10300"
       - "10800:10800"
     volumes:
-      - ./ignite-config:/opt/ignite/config
-      - ignite-data1:/opt/ignite/data
+      - ./data/node1:/opt/ignite/work
+
   node2:
     <<: *ignite-def
     command: --node-name node2
@@ -24,8 +26,8 @@ services:
       - "10301:10300"
       - "10801:10800"
     volumes:
-      - ./ignite-config:/opt/ignite/config
-      - ignite-data2:/opt/ignite/data
+      - ./data/node2:/opt/ignite/work
+
   node3:
     <<: *ignite-def
     command: --node-name node3
@@ -33,10 +35,22 @@ services:
       - "10302:10300"
       - "10802:10800"
     volumes:
-      - ./ignite-config:/opt/ignite/config
-      - ignite-data3:/opt/ignite/data
+      - ./data/node3:/opt/ignite/work
 
-volumes:
-  ignite-data1:
-  ignite-data2:
-  ignite-data3:
+configs:
+  node_config:
+    content: |
+      ignite {
+        network {
+          port: 3344
+          nodeFinder.netClusterNodes = ["node1:3344", "node2:3344", "node3:3344"]
+        }
+        "storage": {
+          "profiles": [
+            {
+              name: "rocksDbProfile"
+              engine: "rocksdb"
+            }
+          ]
+        }
+      }
