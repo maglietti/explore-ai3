@@ -5,7 +5,7 @@ Now let's create the client that will fetch transit data from a GTFS-realtime fe
 Create a file `GTFSFeedClient.java`:
 
 ```java
-package com.gridgain.transit;
+package com.example.transit;
 
 import com.google.transit.realtime.GtfsRealtime.FeedEntity;
 import com.google.transit.realtime.GtfsRealtime.FeedMessage;

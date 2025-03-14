@@ -2,7 +2,7 @@
 
 ## Introduction
 
-Welcome to the next step in your Apache Ignite 3 journey! In this hands-on guide, you'll build a real-time transit monitoring system that showcases Ignite's powerful distributed data capabilities. By the end of this 40-minute guide, you'll have a functional application that:
+In this hands-on tutorial, you'll build a real-time transit monitoring system that showcases Ignite's powerful distributed data capabilities. By the end of this 40-minute tutorial, you'll have a functional application that:
 
 - Connects to live transit data feeds using industry-standard formats
 - Stores and queries vehicle positions in near real-time
@@ -20,10 +20,11 @@ This project is a practical demonstration of how Apache Ignite 3 can be used for
 
 ### Prerequisites
 
-Before starting this guide, ensure you have:
+Before starting this tutorial, ensure you have:
+
 - Java 11 or later installed
 - Maven or Gradle for dependency management
-- Completed the "Use the Java API" guide from our Ignite 3 journey
+- Completed the "Use the Java API" tutorial from our Ignite 3 journey
 - A running Ignite 3 node (even a single node is sufficient)
 
 Let's get started with building our transit monitoring system!

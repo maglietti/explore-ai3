@@ -5,7 +5,7 @@ Finally, let's create our main application class that brings everything together
 Create `TransitMonitoringApp.java`:
 
 ```java
-package com.gridgain.transit;
+package com.example.transit;
 
 import org.apache.ignite.client.IgniteClient;
 

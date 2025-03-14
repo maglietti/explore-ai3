@@ -5,7 +5,7 @@ Before we proceed with integrating our GTFS client with Ignite, let's create a s
 Create a new file `GTFSConnectionTest.java`:
 
 ```java
-package com.gridgain.transit;
+package com.example.transit;
 
 import java.util.List;
 
@@ -63,7 +63,7 @@ public class GTFSConnectionTest {
 To run this test, compile and execute it using Maven:
 
 ```bash
-mvn compile exec:java -Dexec.mainClass="com.gridgain.transit.GTFSConnectionTest"
+mvn compile exec:java -Dexec.mainClass="com.example.transit.GTFSConnectionTest"
 ```
 
 ## What to Expect

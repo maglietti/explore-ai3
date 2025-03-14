@@ -5,7 +5,7 @@ Now that we understand our data model, let's create the database schema in Ignit
 Create a new file `SchemaSetup.java`:
 
 ```java
-package com.gridgain.transit;
+package com.example.transit;
 
 import org.apache.ignite.client.IgniteClient;
 import org.apache.ignite.client.SqlClientSession;

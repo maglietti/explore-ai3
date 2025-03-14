@@ -5,7 +5,7 @@ Before we continue building our business logic, let's make sure our data is prop
 Create a simple utility class to verify the data, `DataVerifier.java`:
 
 ```java
-package com.gridgain.transit;
+package com.example.transit;
 
 import org.apache.ignite.client.IgniteClient;
 import org.apache.ignite.client.SqlClientSession;

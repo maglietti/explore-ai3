@@ -20,7 +20,7 @@ Here's what a typical vehicle position entry contains:
 Let's model this data for our application by creating a `VehiclePosition.java` class:
 
 ```java
-package com.gridgain.transit;
+package com.example.transit;
 
 import java.sql.Timestamp;
 

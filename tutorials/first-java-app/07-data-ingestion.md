@@ -5,7 +5,7 @@ Now that we can fetch transit data, let's create a service to regularly retrieve
 Create a file `DataIngestionService.java`:
 
 ```java
-package com.gridgain.transit;
+package com.example.transit;
 
 import org.apache.ignite.client.IgniteClient;
 import org.apache.ignite.client.SqlClientSession;

@@ -5,7 +5,7 @@ One of Ignite's powerful features is continuous queries, which can monitor for s
 Create a file `ServiceMonitor.java`:
 
 ```java
-package com.gridgain.transit;
+package com.example.transit;
 
 import org.apache.ignite.client.ClientContinuousQueryListener;
 import org.apache.ignite.client.ContinuousQuery;

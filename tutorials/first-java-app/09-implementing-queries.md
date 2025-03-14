@@ -5,7 +5,7 @@ Now that we've verified our data is correctly stored in Ignite, let's implement 
 Create a file `TransitQueries.java`:
 
 ```java
-package com.gridgain.transit;
+package com.example.transit;
 
 import org.apache.ignite.client.IgniteClient;
 import org.apache.ignite.client.SqlClientSession;
