@@ -24,7 +24,7 @@ Before starting this tutorial, ensure you have:
 
 - Java 11 or later installed
 - Maven or Gradle for dependency management
-- Completed the "Use the Java API" tutorial from our Ignite 3 journey
-- A running Ignite 3 node (even a single node is sufficient)
+- Completed the "Use the Java API" How-To guide
+- A running Ignite 3 node (even a single node is sufficient) cluster in Docker
 
 Let's get started with building our transit monitoring system!
