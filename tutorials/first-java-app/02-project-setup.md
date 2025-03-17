@@ -73,7 +73,7 @@ We'll start by creating a Maven `pom.xml` file with our dependencies:
 
 ## Starting your Ignite cluster
 
-Let's create a Docker Compose file inside our project to set up a local three-node Ignite 3 cluster:
+Create a Docker Compose file inside our project to set up a local three-node Ignite 3 cluster:
 
 * Create a file named `docker-compose.yml` in the root directory of your project
 * Add the following content:
@@ -147,7 +147,7 @@ Start the Ignite 3 CLI in Docker:
 
 ## Connecting to Ignite
 
-Now let's create a class to connect to our Ignite 3 cluster. Create a file named `IgniteConnection.java` in your project:
+Our first task for this project is to create a Java class that connects to our Ignite 3 cluster. Create a file named `IgniteConnection.java` in your project:
 
 ```java
 package com.example.transit;
@@ -217,7 +217,7 @@ public class IgniteConnection {
 
 ## Testing the Connection
 
-Now let's create a class to test our connection to the Ignite cluster:
+Now, let's create a class to test our connection to the Ignite cluster and outputs some interesting facts:
 
 ```java
 package com.example.transit;
@@ -392,7 +392,13 @@ public class IgniteClusterTest {
 }
 ```
 
-## Setting Up the Project in IntelliJ IDEA
+Congratulations! You have an Apache Ignite 3 cluster running locally in Docker and have successfully connected to it using the Java API. You are ready to move on and learn how we will use the General Transit Feed Specification (GTFS) as the data source in our application.
+
+## Additional Information
+
+Not every developer does things the same way. You may develop using VS Code or NeoVim or an IDE like IntelliJ IDEA. Here are some hints to help you get this running in your environment.
+
+### Setting Up the Project in IntelliJ IDEA
 
 To create this project in IntelliJ IDEA:
 
@@ -406,7 +412,7 @@ To create this project in IntelliJ IDEA:
 8. Create the Java classes in this package
 9. Create the `docker-compose.yml` file in the project root
 
-## Running the Application via Command Line
+### Running the Application via Command Line
 
 To run the application:
 
