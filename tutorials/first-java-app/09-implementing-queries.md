@@ -1,181 +1,72 @@
-# Implementing Basic Queries
+# Exploring Transit Data with Apache Ignite SQL
 
-Now that we've verified our data is correctly stored in Ignite, let's implement some useful queries to extract insights. These queries will showcase Ignite's SQL capabilities and provide valuable information for our transit monitoring system.
+Apache Ignite provides powerful SQL capabilities that allow you to extract insights from your transit data. Let's explore the data using three key queries from our transit monitoring system.
 
-Create a file `TransitQueries.java`:
+## Query 1: Finding Vehicles on a Specific Route
 
-```java
-package com.example.transit;
-
-import org.apache.ignite.client.IgniteClient;
-import org.apache.ignite.client.SqlClientSession;
-import org.apache.ignite.client.SqlParameters;
-import org.apache.ignite.client.SqlResultCursor;
-import org.apache.ignite.client.SqlRow;
-
-import java.sql.Timestamp;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
-public class TransitQueries {
-    /**
-     * Find all vehicles currently operating on a specific route
-     */
-    public List<VehiclePosition> findVehiclesByRoute(String routeId) {
-        List<VehiclePosition> vehicles = new ArrayList<>();
-        IgniteClient client = IgniteConnection.getClient();
-        SqlClientSession sqlSession = client.sql();
-        
-        String querySql = "SELECT DISTINCT ON (vehicle_id) "
-            + "vehicle_id, route_id, latitude, longitude, timestamp, current_status "
-            + "FROM vehicle_positions "
-            + "WHERE route_id = ? "
-            + "ORDER BY vehicle_id, timestamp DESC";
-        
-        try (SqlParameters params = sqlSession.prepareNative(querySql)
-            .addParameter(routeId);
-             SqlResultCursor cursor = params.execute()) {
-            
-            while (cursor.hasNext()) {
-                SqlRow row = cursor.next();
-                VehiclePosition vehicle = new VehiclePosition(
-                    row.getString("vehicle_id"),
-                    row.getString("route_id"),
-                    row.getDouble("latitude"),
-                    row.getDouble("longitude"),
-                    row.getTimestamp("timestamp").getTime(),
-                    row.getString("current_status")
-                );
-                vehicles.add(vehicle);
-            }
-        } catch (Exception e) {
-            System.err.println("Error querying vehicles by route: " + e.getMessage());
-        }
-        
-        return vehicles;
-    }
-    
-    /**
-     * Find the vehicles nearest to a specific geographic location
-     */
-    public List<VehiclePosition> findNearestVehicles(double lat, double lon, int limit) {
-        List<VehiclePosition> vehicles = new ArrayList<>();
-        IgniteClient client = IgniteConnection.getClient();
-        SqlClientSession sqlSession = client.sql();
-        
-        // Using Euclidean distance as a simple approximation
-        // In a production app, you'd use a proper geospatial function
-        String querySql = "SELECT DISTINCT ON (vehicle_id) "
-            + "vehicle_id, route_id, latitude, longitude, timestamp, current_status, "
-            + "SQRT(POWER(latitude - ?, 2) + POWER(longitude - ?, 2)) as distance "
-            + "FROM vehicle_positions "
-            + "ORDER BY vehicle_id, timestamp DESC, distance ASC "
-            + "LIMIT ?";
-        
-        try (SqlParameters params = sqlSession.prepareNative(querySql)
-            .addParameter(lat)
-            .addParameter(lon)
-            .addParameter(limit);
-             SqlResultCursor cursor = params.execute()) {
-            
-            while (cursor.hasNext()) {
-                SqlRow row = cursor.next();
-                VehiclePosition vehicle = new VehiclePosition(
-                    row.getString("vehicle_id"),
-                    row.getString("route_id"),
-                    row.getDouble("latitude"),
-                    row.getDouble("longitude"),
-                    row.getTimestamp("timestamp").getTime(),
-                    row.getString("current_status")
-                );
-                vehicles.add(vehicle);
-            }
-        } catch (Exception e) {
-            System.err.println("Error querying nearest vehicles: " + e.getMessage());
-        }
-        
-        return vehicles;
-    }
-    
-    /**
-     * Get a count of active vehicles by route
-     */
-    public Map<String, Integer> getVehicleCountsByRoute() {
-        Map<String, Integer> routeCounts = new HashMap<>();
-        IgniteClient client = IgniteConnection.getClient();
-        SqlClientSession sqlSession = client.sql();
-        
-        String querySql = "SELECT route_id, COUNT(DISTINCT vehicle_id) as vehicle_count "
-            + "FROM ("
-            + "  SELECT DISTINCT ON (vehicle_id) "
-            + "    vehicle_id, route_id "
-            + "  FROM vehicle_positions "
-            + "  WHERE timestamp > ? "
-            + "  ORDER BY vehicle_id, timestamp DESC"
-            + ") AS latest_positions "
-            + "GROUP BY route_id";
-        
-        // Only count vehicles with positions in the last 5 minutes
-        long cutoffTime = System.currentTimeMillis() - (5 * 60 * 1000);
-        
-        try (SqlParameters params = sqlSession.prepareNative(querySql)
-            .addParameter(new Timestamp(cutoffTime));
-             SqlResultCursor cursor = params.execute()) {
-            
-            while (cursor.hasNext()) {
-                SqlRow row = cursor.next();
-                routeCounts.put(
-                    row.getString("route_id"),
-                    row.getInt("vehicle_count")
-                );
-            }
-        } catch (Exception e) {
-            System.err.println("Error getting vehicle counts: " + e.getMessage());
-        }
-        
-        return routeCounts;
-    }
-}
+```sql
+SELECT DISTINCT ON (vehicle_id) 
+    vehicle_id, route_id, latitude, longitude, timestamp, current_status 
+FROM vehicle_positions 
+WHERE route_id = ? 
+ORDER BY vehicle_id, timestamp DESC
 ```
 
-## Understanding These Queries
+This query is perfect when you need to track all active vehicles on a particular route. For instance, if you're monitoring Route 42, you'd supply "42" as the parameter. The query uses `DISTINCT ON` to ensure you only get the latest position for each vehicle, avoiding duplicate entries for vehicles that have reported multiple positions.
 
-Let's examine what each of these queries does:
+## Query 2: Finding the Nearest Vehicles to a Location
 
-### 1. Finding Vehicles by Route
+```sql
+SELECT DISTINCT ON (vehicle_id) 
+    vehicle_id, route_id, latitude, longitude, timestamp, current_status, 
+    SQRT(POWER(latitude - ?, 2) + POWER(longitude - ?, 2)) as distance 
+FROM vehicle_positions 
+ORDER BY vehicle_id, timestamp DESC, distance ASC 
+LIMIT ?
+```
 
-The `findVehiclesByRoute` method retrieves all vehicles currently operating on a specific route. Key features:
+This query is useful for location-based services. For example, if a passenger at coordinates (40.7128, -74.0060) wants to know which buses are nearby, this query calculates the distance between each vehicle and that location, then returns the closest ones. While it uses a simple Euclidean distance calculation, this approach works well for smaller geographic areas. In a production environment, you might replace this with a proper geospatial function for more accurate results over larger distances.
 
-- Uses `DISTINCT ON (vehicle_id)` to get only the most recent position for each vehicle
-- Sorts by `timestamp DESC` to ensure we get the latest position
-- Uses parameterized queries for security and performance
-- Returns a list of `VehiclePosition` objects for easy consumption by other parts of the application
+## Query 3: Counting Active Vehicles by Route
 
-### 2. Finding Nearest Vehicles
+```sql
+SELECT route_id, COUNT(DISTINCT vehicle_id) as vehicle_count 
+FROM (
+  SELECT DISTINCT ON (vehicle_id) 
+    vehicle_id, route_id 
+  FROM vehicle_positions 
+  WHERE timestamp > ? 
+  ORDER BY vehicle_id, timestamp DESC
+) AS latest_positions 
+GROUP BY route_id
+```
 
-The `findNearestVehicles` method finds vehicles closest to a given geographic point. Key features:
+This query provides a high-level view of your transit system's current activity. It first finds the most recent position for each vehicle that has reported within the last 5 minutes, then groups these positions by route to count how many active vehicles are operating on each route. This is valuable for dispatchers who need to ensure routes have adequate coverage or to identify routes that might be understaffed.
 
-- Calculates distance using a simple Euclidean formula (in a production app, you'd use a proper geospatial function)
-- Orders results by distance, showing closest vehicles first
-- Limits the number of results to prevent excessive data transfer
-- Again uses `DISTINCT ON` to ensure we only get the latest position for each vehicle
+## Sample Exploration Scenario
 
-### 3. Getting Vehicle Counts by Route
+Imagine you're a transit system operator during rush hour. You could use these queries to:
 
-The `getVehicleCountsByRoute` method provides a count of active vehicles on each route. Key features:
+1. First, run the counts query to see which routes have fewer vehicles than expected:
+   ```
+   Route 15: 3 vehicles
+   Route 22: 8 vehicles
+   Route 42: 2 vehicles (should have 5)
+   ```
 
-- Uses a subquery to get the latest position of each vehicle
-- Filters out stale data older than 5 minutes
-- Groups results by route ID for easy analysis
-- Returns a map for quick lookup of counts by route
+2. Upon noticing Route 42 is understaffed, use the first query to see exactly where the two active vehicles are:
+   ```
+   Vehicle 42-101: Latitude 40.7123, Longitude -74.0082, Status "IN_TRANSIT_TO"
+   Vehicle 42-103: Latitude 40.7255, Longitude -73.9983, Status "STOPPED_AT"
+   ```
 
-These queries demonstrate Ignite's SQL capabilities, including:
-- Complex query structures with subqueries
-- Mathematical functions
-- Aggregation and grouping
-- Advanced sorting and filtering
-- Parameterized queries for security
+3. If you need to divert a vehicle from a nearby route, use the second query to find vehicles close to the understaffed route:
+   ```
+   Vehicle 38-107: 0.5 miles away
+   Vehicle 25-112: 0.8 miles away
+   Vehicle 31-104: 1.2 miles away
+   ```
 
-With these queries, we now have the foundational business logic for our transit monitoring system.
+4. Based on this data, you might contact the driver of Vehicle 38-107 and ask them to assist with Route 42 once they complete their current segment.
+
+These queries demonstrate how Apache Ignite's SQL capabilities enable real-time decision making for transit operations. By retrieving only the most recent and relevant data through well-crafted queries, you can maintain an efficient and responsive transit monitoring system.
