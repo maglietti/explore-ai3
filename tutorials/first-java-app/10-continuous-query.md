@@ -1,108 +1,173 @@
-# Adding a Continuous Query
+# Adding a Service Monitor
 
-One of Ignite's powerful features is continuous queries, which can monitor for specific conditions and trigger actions when those conditions are met. Let's implement a service monitor to detect potential service disruptions.
+One of Ignite's powerful features is its SQL querying capability which enables us to monitor for specific conditions and trigger actions when those conditions are met. Let's implement a service monitor to detect potential service disruptions by identifying vehicles that have been stopped for an extended period.
 
 Create a file `ServiceMonitor.java`:
 
 ```java
 package com.example.transit;
 
-import org.apache.ignite.client.ClientContinuousQueryListener;
-import org.apache.ignite.client.ContinuousQuery;
 import org.apache.ignite.client.IgniteClient;
-import org.apache.ignite.client.SqlClientSession;
-import org.apache.ignite.client.SqlContinuousQueryCursor;
-import org.apache.ignite.client.SqlParameters;
-import org.apache.ignite.client.SqlRow;
 
-import java.sql.Timestamp;
-import java.util.List;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
+/**
+ * Monitors vehicle positions for potential service disruptions.
+ * Uses a polling approach to check for stopped vehicles.
+ */
 public class ServiceMonitor {
-    public void monitorServiceDisruptions() {
-        IgniteClient client = IgniteConnection.getClient();
-        SqlClientSession sqlSession = client.sql();
-        
-        // Query to detect vehicles with significant delays
-        String continuousQuerySql = "SELECT v.vehicle_id, v.route_id, v.current_status, "
-            + "v.latitude, v.longitude, v.timestamp "
-            + "FROM vehicle_positions v "
-            + "JOIN ("
-            + "  SELECT vehicle_id, MAX(timestamp) as latest_ts "
-            + "  FROM vehicle_positions "
-            + "  GROUP BY vehicle_id"
-            + ") latest ON v.vehicle_id = latest.vehicle_id AND v.timestamp = latest.latest_ts "
-            + "WHERE v.current_status = 'STOPPED_AT' "
-            + "AND v.timestamp < ?";
-        
-        // Detect vehicles stopped for more than 5 minutes
-        long threshold = System.currentTimeMillis() - (5 * 60 * 1000);
+    // Threshold in minutes that determines when a stopped vehicle is considered delayed
+    private static final int STOPPED_THRESHOLD_MINUTES = 5;
+    private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
+    private final IgniteClient client;
+    
+    public ServiceMonitor() {
+        this.client = IgniteConnection.getClient();
+    }
+    
+    /**
+     * Starts monitoring for service disruptions by polling the database at regular intervals.
+     * 
+     * @param intervalSeconds The polling interval in seconds
+     */
+    public void startMonitoring(int intervalSeconds) {
+        System.out.println("Starting service disruption monitoring (polling every " + intervalSeconds + " seconds)");
+        scheduler.scheduleAtFixedRate(
+            this::checkForServiceDisruptions, 
+            0, 
+            intervalSeconds, 
+            TimeUnit.SECONDS
+        );
+    }
+    
+    /**
+     * Stops the monitoring service.
+     */
+    public void stopMonitoring() {
+        scheduler.shutdown();
+        System.out.println("Service disruption monitoring stopped");
+    }
+    
+    /**
+     * Checks for vehicles that have been stopped for longer than the threshold.
+     */
+    private void checkForServiceDisruptions() {
+        // Query to detect vehicles stopped for more than the threshold time
+        String querySql = 
+            "SELECT " +
+            "    v.vehicle_id, " +
+            "    v.route_id, " +
+            "    v.current_status, " +
+            "    v.latitude, " +
+            "    v.longitude, " +
+            "    v.time_stamp, " +
+            "    TIMESTAMPDIFF(MINUTE, v.time_stamp, CURRENT_TIMESTAMP) as stopped_minutes " +
+            "FROM vehicle_positions v " +
+            "JOIN (" +
+            "    SELECT vehicle_id, MAX(time_stamp) as latest_ts " +
+            "    FROM vehicle_positions " +
+            "    GROUP BY vehicle_id " +
+            ") l ON v.vehicle_id = l.vehicle_id AND v.time_stamp = l.latest_ts " +
+            "WHERE " +
+            "    v.current_status = 'STOPPED_AT' " +
+            "    AND TIMESTAMPDIFF(MINUTE, v.time_stamp, CURRENT_TIMESTAMP) >= ?";
         
         try {
-            SqlParameters params = sqlSession.prepareNative(continuousQuerySql)
-                .addParameter(new Timestamp(threshold));
+            // Execute the query with the threshold parameter
+            var result = client.sql().execute(null, querySql, STOPPED_THRESHOLD_MINUTES);
             
-            ClientContinuousQueryListener<SqlRow> listener = new ClientContinuousQueryListener<SqlRow>() {
-                @Override
-                public void onUpdated(List<SqlRow> rows) {
-                    for (SqlRow row : rows) {
-                        System.out.println("⚠️ Service disruption detected!");
-                        System.out.println("Vehicle ID: " + row.getString("vehicle_id"));
-                        System.out.println("Route ID: " + row.getString("route_id"));
-                        System.out.println("Status: " + row.getString("current_status"));
-                        System.out.println("Last updated: " + row.getTimestamp("timestamp"));
-                        System.out.println("--------------------");
-                    }
-                }
-            };
+            int count = 0;
+            // Process each row in the result
+            while (result.hasNext()) {
+                var row = result.next();
+                count++;
+                
+                System.out.println("Service disruption detected!");
+                System.out.println("Vehicle ID: " + row.stringValue("vehicle_id"));
+                System.out.println("Route ID: " + row.stringValue("route_id"));
+                System.out.println("Status: " + row.stringValue("current_status"));
+                System.out.println("Last updated: " + row.value("time_stamp"));
+                System.out.println("Minutes stopped: " + row.intValue("stopped_minutes"));
+                System.out.println("Location: (" + row.doubleValue("latitude") + ", " 
+                                  + row.doubleValue("longitude") + ")");
+                System.out.println("--------------------");
+            }
             
-            // Create and start the continuous query
-            ContinuousQuery<SqlRow> continuousQuery = params.continuousQuery()
-                .initialQueryMaxRows(100)
-                .listener(listener);
-            
-            SqlContinuousQueryCursor<SqlRow> cursor = continuousQuery.execute();
-            System.out.println("Continuous query for service disruptions started");
-            
-            // In a real application, you would store this cursor to close it later
-            // For this guide, we'll let it run until the application stops
+            if (count > 0) {
+                System.out.println("Found " + count + " delayed vehicles");
+            }
         } catch (Exception e) {
-            System.err.println("Error setting up continuous query: " + e.getMessage());
+            System.err.println("Error checking for service disruptions: " + e.getMessage());
             e.printStackTrace();
         }
     }
 }
 ```
 
-## Understanding Continuous Queries
+## Understanding the Service Monitor
 
-Continuous queries are a powerful feature of Ignite that allow you to monitor for specific conditions in your data and receive notifications when those conditions are met. Unlike traditional queries that run once and return results, continuous queries keep running and notify you whenever the data changes and matches your criteria.
+The ServiceMonitor uses a scheduled polling approach to regularly check for vehicles that meet our criteria for a service disruption. The key components include:
 
-In our example, we're using a continuous query to detect service disruptions by looking for vehicles that:
-1. Are in a "STOPPED_AT" status
-2. Haven't updated their position in more than 5 minutes
+1. **The SQL Query**: This is the core of our monitoring solution, which identifies vehicles that have been stopped for more than 5 minutes.
 
-This could indicate a vehicle that's experiencing a delay or other service issue.
+2. **A Scheduled Executor**: This runs the check at regular intervals.
 
-The continuous query has several key components:
+3. **Result Processing**: Each vehicle that meets the criteria is logged with detailed information.
 
-1. **The Query**: This defines what we're looking for, using standard SQL syntax.
-2. **The Listener**: This is called whenever the query finds matching results.
-3. **The Cursor**: This represents the running query and can be used to stop it later.
+The SQL query is particularly powerful because it:
 
-## Benefits of Continuous Queries
+1. Finds the latest position record for each vehicle using a subquery
+2. Checks if that latest record has a "STOPPED_AT" status
+3. Calculates how long the vehicle has been stopped using the `TIMESTAMPDIFF` function
+4. Only returns vehicles where the stopped time exceeds our threshold (5 minutes)
 
-Using continuous queries for monitoring provides several advantages:
+## Using the Service Monitor
 
-1. **Realtime Alerts**: Get immediate notification when conditions are met
-2. **Reduced Network Traffic**: Only receive the specific data that matches your criteria
-3. **Server-Side Processing**: The filtering happens on the server, not the client
-4. **Scalability**: Works well even with large datasets
+To use this monitor in your application, you would integrate it like this:
 
-In a production system, you might extend this with additional functionality like:
-- Sending notifications to operators
-- Logging incidents to a database
+```java
+public class TransitMonitoringApp {
+    public static void main(String[] args) {
+        // Set up schema first
+        SchemaSetup schemaSetup = new SchemaSetup();
+        schemaSetup.createSchema();
+        
+        // Start the data ingestion service
+        DataIngestionService ingestService = new DataIngestionService("your-gtfs-feed-url");
+        ingestService.start(30); // Update every 30 seconds
+        
+        // Start the service monitor with a 15-second polling interval
+        ServiceMonitor monitor = new ServiceMonitor();
+        monitor.startMonitoring(15);
+        
+        // The application continues running with regular monitoring
+        System.out.println("Transit monitoring system is now active");
+        
+        // Add a shutdown hook to stop services gracefully
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            System.out.println("Shutting down monitoring services...");
+            ingestService.stop();
+            monitor.stopMonitoring();
+        }));
+    }
+}
+```
+
+## Benefits of SQL-Based Monitoring
+
+Using SQL queries for monitoring provides several advantages:
+
+1. **Declarative Definition**: You can express complex conditions directly in SQL
+2. **Server-Side Processing**: Filtering happens on the server, minimizing network traffic
+3. **Flexibility**: Easily adjust thresholds or add new conditions
+4. **Integration**: Works seamlessly with your existing data model
+
+In a production system, you might extend this monitor with additional functionality such as:
+- Sending notifications via email or SMS
+- Logging incidents to a separate table for historical analysis
 - Triggering automated recovery procedures
 - Calculating service level metrics
 
-Continuous queries are just one way Ignite supports realtime monitoring and event processing, making it ideal for applications like our transit monitoring system.
+This SQL-based monitoring approach demonstrates how Ignite can be used not just for data storage but as an intelligent processing platform for real-time applications.
