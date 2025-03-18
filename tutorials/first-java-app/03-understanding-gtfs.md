@@ -57,7 +57,7 @@ public class VehiclePosition implements Serializable {
         this.currentStatus = currentStatus;
     }
 
-    // Getters and Setters - required for proper POJO
+    // Getters and Setters
     public String getVehicleId() { return vehicleId; }
     public void setVehicleId(String vehicleId) { this.vehicleId = vehicleId; }
 
@@ -79,7 +79,7 @@ public class VehiclePosition implements Serializable {
     public Instant getTimestampAsInstant() { return Instant.ofEpochMilli(this.timestamp); }
 
     /**
-     * Equals method for proper object comparison
+     * Equals method for object comparison
      */
     @Override
     public boolean equals(Object o) {
@@ -119,9 +119,9 @@ This model is our translator between the GTFS protocol buffer format and a strai
 
 ## Creating the Ignite Schema: Persisting Transit Movement
 
-With our Java model defined, we now need a place to store these snapshots. Apache Ignite provides the perfect distributed database for this scenario, offering both the performance for real-time processing and the capacity for historical analysis.
+With our data model defined in Java, we now need a place to store these snapshots. Apache Ignite provides the perfect distributed database for this scenario, offering both the performance for real-time processing and the capacity for historical analysis.
 
-The `SchemaSetup` class will create the schema that will house our transit data:
+The `SchemaSetup` class will create the schema to house our transit data:
 
 ```java
 package com.example.transit;
@@ -133,7 +133,6 @@ import org.apache.ignite.catalog.definitions.TableDefinition;
 import org.apache.ignite.table.Table;
 
 /**
- * Creates the database schema for storing vehicle position data.
  * This class handles creating tables for the transit monitoring system.
  */
 public class SchemaSetup {
@@ -143,14 +142,11 @@ public class SchemaSetup {
      *
      * Uses the singleton IgniteClient from IgniteConnection.
      *
-     * Uses the Catalog API instead of SQL to create tables, which avoids
-     * SQL parsing issues and provides better type safety.
-     *
      * @return true if the schema setup was successful
      */
     public boolean createSchema() {
         try {
-            // Get the singleton client instance
+            // Get the client connection
             IgniteClient client = IgniteConnection.getClient();
 
             // Check if table already exists
@@ -168,7 +164,7 @@ public class SchemaSetup {
             }
 
             if (!tableExists) {
-                // Define and create the table using Catalog API
+                // Define and create the table
                 TableDefinition tableDefinition = TableDefinition.builder("vehicle_positions")
                         .ifNotExists()
                         .columns(
@@ -247,7 +243,7 @@ public class SchemaSetupTest {
                     // Get a reference to the vehicle_positions table
                     Table table = client.tables().table("vehicle_positions");
                     System.out.println("Table: " + table.name());
-                    System.out.println("Table verification successful.");
+                    System.out.println("Table creation successful.");
 
                     // Create a VehiclePosition object for testing
                     long currentTime = System.currentTimeMillis();
@@ -282,7 +278,7 @@ public class SchemaSetupTest {
                     recordView.insert(null, vehicleTuple);
                     System.out.println("Test record inserted successfully: " + testVehicle);
 
-                    // Use SQL approach for querying
+                    // Use SQL approach to query
                     String querySql = "SELECT vehicle_id, route_id, latitude, longitude, " +
                             "time_stamp, current_status FROM vehicle_positions WHERE vehicle_id = ?";
 
@@ -310,7 +306,7 @@ public class SchemaSetupTest {
 
                     System.out.println("Retrieved " + results.size() + " vehicle position records");
 
-                    // Use SQL for delete as well
+                    // Use SQL for delete
                     String deleteSql = "DELETE FROM vehicle_positions WHERE vehicle_id = ?";
                     client.sql().execute(null, deleteSql, testVehicle.getVehicleId());
                     System.out.println("Test record deleted successfully.");
@@ -357,6 +353,8 @@ public class SchemaSetupTest {
 ```
 
 ## The Architecture Behind the Schema
+
+TODO: REWRITE
 
 Our schema design isn't just a collection of columns – it's a carefully considered structure that facilitates powerful queries and analysis:
 
