@@ -89,7 +89,7 @@ public class GTFSFeedClient {
 
 To access the GTFS-realtime feed for the San Francisco Bay Area, you'll need an API token from 511.org:
 
-1. Visit https://511.org/open-data/token
+1. Visit <https://511.org/open-data/token>
 2. Complete the registration form
 3. Submit the form
 4. Save the API token that's emailed to you
@@ -111,7 +111,7 @@ Add this dependency to the `pom.xml`:
 
 Create a file named `.env` in the root of your project:
 
-```
+```conf
 # 511.org API token - get yours at https://511.org/open-data/token
 API_TOKEN=your_token_here
 
@@ -217,7 +217,7 @@ mvn compile exec:java -Dexec.mainClass="com.example.transit.GTFSConnectionTest"
 
 Successful execution will produce output similar to:
 
-```
+``` text
 Using GTFS feed URL: https://api.511.org/transit/vehiclepositions?api_key=a1b2c3d4-5e6f-7g8h-9i0j-k1l2m3n4o5p6&agency=SF
 Fetched 540 vehicle positions from feed
 Success! Retrieved 540 vehicle positions.
