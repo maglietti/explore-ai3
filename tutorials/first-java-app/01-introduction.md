@@ -2,29 +2,79 @@
 
 ## Introduction
 
-In this hands-on tutorial, you'll build a real-time transit monitoring system that showcases Ignite's powerful distributed data capabilities. By the end of this 40-minute tutorial, you'll have a functional application that:
+In this hands-on tutorial, you'll build a real-time transit monitoring system that demonstrates Apache Ignite 3's distributed data capabilities. Through this practical project, you'll experience firsthand how Ignite enables rapid development of applications that require high throughput, low latency, and resilient data processing.
 
-- Connects to live transit data feeds using industry-standard formats
-- Stores and queries vehicle positions in near real-time
-- Monitors service disruptions using continuous queries
-- Displays a simple dashboard showing transit statistics
+Transit data provides an ideal context for learning Ignite because it combines several challenging characteristics found in modern applications:
 
-This project is a practical demonstration of how Apache Ignite 3 can be used for real-time data processing applications. Transit data is ideal for this demonstration as it combines structured data, time-series elements, and geospatial components - all while providing a tangible, real-world use case.
+- **Real-time data streams** that must be continuously processed
+- **Time-series data** requiring efficient storage and retrieval
+- **Geospatial components** for tracking vehicle locations
+- **Complex queries** for analyzing system performance
+- **Continuous monitoring** for detecting service anomalies
 
-### What You'll Learn
+By the end of this 40-minute tutorial, you'll have built a complete application that:
 
-- How to ingest real-time data streams into Ignite 3
-- Working with Ignite's SQL capabilities for querying time-series data
-- Using continuous queries to monitor for specific conditions
-- Building a simple monitoring dashboard
+- Connects to industry-standard GTFS transit feeds to obtain live vehicle data
+- Persists vehicle positions in a distributed Ignite database for real-time and historical access
+- Executes complex SQL queries to extract actionable insights
+- Monitors transit service disruptions through automated data analysis
+- Presents system status through a simple dashboard interface
 
-### Prerequisites
+## What You'll Learn
 
-Before starting this tutorial, ensure you have:
+Throughout this tutorial, you'll gain hands-on experience with key Apache Ignite 3 features:
 
-- Java 11 or later installed
-- Maven or Gradle for dependency management
-- Completed the "Use the Java API" How-To guide
-- A running Ignite 3 node (even a single node is sufficient) cluster in Docker
+### Data Modeling and Storage
 
-Let's get started with building our transit monitoring system!
+- Creating tables using Ignite's Java API
+- Defining appropriate schemas for time-series data
+- Managing primary keys and indices for optimal performance
+
+### Data Ingestion
+
+- Building data pipelines with proper error handling
+- Implementing efficient batch processing for high-throughput scenarios
+- Using scheduled execution for continuous data updates
+
+### Querying and Analysis
+
+- Writing SQL queries against distributed data
+- Using temporal functions for time-series analysis
+- Implementing complex joins and aggregations for operational insights
+
+### Monitoring and Alerting
+
+- Creating monitoring systems using SQL-based polling
+- Detecting anomalies in real-time data streams
+- Building simple visualization components for system status
+
+## Prerequisites
+
+Before starting this tutorial, please ensure you have:
+
+- **Java 11 or later** installed and properly configured
+- **Maven or Gradle** for dependency management
+- **Docker** for running the Ignite 3 cluster
+- **Basic Java knowledge**, including familiarity with classes, interfaces, and collections
+- **Some SQL experience** for understanding the query examples
+- **Completed the "Use the Java API" How-To guide** (recommended but not required)
+
+## Tutorial Flow
+
+This tutorial is designed as a progressive journey through building a complete application:
+
+```mermaid
+graph TD
+    A[Project Setup] --> B[Understanding GTFS Data]
+    B --> C[Schema Creation]
+    C --> D[GTFS Client Implementation]
+    D --> E[Data Ingestion Service]
+    E --> F[SQL Querying]
+    F --> G[Service Monitoring]
+    G --> H[Application Integration]
+    H --> I[Conclusion & Next Steps]
+```
+
+Each module builds on the previous ones, introducing new concepts while reinforcing what you've already learned. The code examples are designed to work together as a cohesive application, but each component also illustrates standalone concepts that can be applied to other projects.
+
+> **Next Steps:** Continue to [Module 2: Project Setup and Configuration](02-project-setup.md) to set up our project structure and configure our Ignite cluster!

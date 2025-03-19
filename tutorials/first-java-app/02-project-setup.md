@@ -1,8 +1,14 @@
 # Project Setup and Configuration
 
-First, let's set up our project structure. You can either create it manually or clone our starter [repository](#).
+In this module, you'll establish the foundation for your transit monitoring application by setting up the project structure, dependencies, and local Ignite cluster. A proper setup ensures you can focus on the core functionality in subsequent modules without environment-related interruptions.
 
-We'll start by creating a Maven `pom.xml` file with our dependencies:
+## Creating the Project Structure
+
+You can either create the project structure manually as you progress through the tutorial, or clone the starter [repository](https://github.com/maglietti/explore-ai3). We'll walk through the manual setup process to understand each component.
+
+### Maven Configuration
+
+Start by creating a Maven `pom.xml` file with the necessary dependencies for your application:
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
@@ -28,19 +34,26 @@ We'll start by creating a Maven `pom.xml` file with our dependencies:
             <artifactId>ignite-client</artifactId>
             <version>${ignite.version}</version>
         </dependency>
-        
+
         <!-- GTFS-realtime library -->
         <dependency>
-            <groupId>org.onebusaway</groupId>
-            <artifactId>onebusaway-gtfs-realtime-api</artifactId>
-            <version>1.2.0</version>
+            <groupId>org.mobilitydata</groupId>
+            <artifactId>gtfs-realtime-bindings</artifactId>
+            <version>0.0.8</version>
         </dependency>
-        
+
         <!-- Logging -->
         <dependency>
             <groupId>ch.qos.logback</groupId>
             <artifactId>logback-classic</artifactId>
             <version>1.2.11</version>
+        </dependency>
+
+        <!-- Configuration -->
+        <dependency>
+            <groupId>io.github.cdimascio</groupId>
+            <artifactId>dotenv-java</artifactId>
+            <version>2.3.2</version>
         </dependency>
     </dependencies>
 
@@ -71,12 +84,36 @@ We'll start by creating a Maven `pom.xml` file with our dependencies:
 </project>
 ```
 
-## Starting your Ignite cluster
+This Maven configuration includes:
 
-Create a Docker Compose file inside our project to set up a local three-node Ignite 3 cluster:
+- Apache Ignite client library for connecting to an Ignite cluster
+- MobilityData [GTFS-realtime API](https://github.com/MobilityData/gtfs-realtime-bindings) for parsing transit data
+- [Logback](https://github.com/qos-ch/logback) for structured logging
+- Google [dotenv-java](https://github.com/cdimascio/dotenv-java) for configuration
+- Maven Shade plugin to create an executable JAR with all dependencies
 
-* Create a file named `docker-compose.yml` in the root directory of your project
-* Add the following content:
+## Understanding Ignite's Client-Server Architecture
+
+Before we set up our Ignite cluster, let's briefly explore Ignite's architecture. Apache Ignite 3 follows a client-server model:
+
+- **Server Nodes**: Form the distributed cluster where data is stored and processed
+- **Thin Clients**: Lightweight connections that communicate with the cluster
+
+Unlike in Ignite 2.x, Ignite 3 exclusively uses the thin client model. This separation provides several advantages:
+
+1. **Resource Efficiency**: Clients require minimal memory and CPU
+2. **Language Flexibility**: Clients can be implemented in various languages
+3. **Operational Simplicity**: Server nodes can be deployed and scaled independently
+
+In our application, we'll use Java thin clients to connect to a cluster of Ignite server nodes running in Docker containers.
+
+## Setting Up Your Ignite Cluster
+
+To run the application, you need a local Ignite 3 cluster. Docker provides the simplest way to get started without complex installation procedures.
+
+### Creating a Docker Compose File
+
+Create a file named `docker-compose.yml` in your project's root directory:
 
 ```yaml
 name: ignite3  
@@ -121,33 +158,60 @@ configs:
       }
 ```
 
-### Starting an Ignite 3 Cluster
+This configuration creates a three-node Ignite cluster running in Docker containers. Each node is configured with:
 
-* Open a terminal in the directory containing your `docker-compose.yml` file
-* Run: `docker compose up -d`
-* Open a second terminal in the directory containing your `docker-compose.yml` file
-* Check the status with: `docker compose ps`
+- 4GB of memory allocation
+- Exposed HTTP and thin client ports
+- A shared configuration for node discovery
 
-If everything is set up correctly, you should see three Apache Ignite containers running and exposing ports to the host network.
+### Starting the Ignite Cluster
+
+To launch the cluster:
+
+1. Open a terminal in the directory containing your `docker-compose.yml` file
+2. Run: `docker compose up -d`
+3. Verify the status with: `docker compose ps`
+
+You should see output similar to:
+
+```shell
+NAME                COMMAND                  SERVICE             STATUS              PORTS
+ignite3-node1-1     "/opt/ignite/bin/ign…"   node1               running             0.0.0.0:10300->10300/tcp, 0.0.0.0:10800->10800/tcp
+ignite3-node2-1     "/opt/ignite/bin/ign…"   node2               running             0.0.0.0:10301->10300/tcp, 0.0.0.0:10801->10800/tcp
+ignite3-node3-1     "/opt/ignite/bin/ign…"   node3               running             0.0.0.0:10302->10300/tcp, 0.0.0.0:10802->10800/tcp
+```
+
+### Understanding Ignite Ports
+
+In our Docker Compose configuration, we're exposing two ports for each node:
+
+- **10300-10302**: The REST API ports used for administrative operations
+- **10800-10802**: The client connection ports used by our Java application
+
+These ports follow Ignite 3's network architecture, which separates client traffic from administrative operations.
 
 ### Initializing the Cluster
 
+Before we can use our cluster, we need to initialize it. Ignite 3 requires explicit cluster initialization, which configures the metastorage group responsible for system metadata.
+
 Start the Ignite 3 CLI in Docker:
 
-  ```bash
-  docker run --rm -it --network=host -e LANG=C.UTF-8 -e LC_ALL=C.UTF-8 apacheignite/ignite:3.0.0 cli
-  ```
+```bash
+docker run --rm -it --network=host -e LANG=C.UTF-8 -e LC_ALL=C.UTF-8 apacheignite/ignite:3.0.0 cli
+```
 
-* Connect to the default node by selecting Yes or type `connect http://localhost:10300`
-* Inside the CLI, initialize the cluster:
+Inside the CLI:
 
-  ```shell
-  cluster init --name=ignite3 --metastorage-group=node1,node2,node3
-  ```
+1. Connect to a node: `connect http://localhost:10300`
+2. Initialize the cluster: `cluster init --name=ignite3 --metastorage-group=node1,node2,node3`
 
-## Connecting to Ignite
+> **Important:** The initialization step is only performed once for a new cluster. If the command returns an error indicating the cluster is already initialized, you can proceed to the next step.
 
-Our first task for this project is to create a Java class that connects to our Ignite 3 cluster. Create a file named `IgniteConnection.java` in your project:
+## Creating the Ignite Connection Manager
+
+Now that our cluster is running, we need a reliable way to connect to it from our Java application. Let's create an `IgniteConnection` class that will handle connection management, including initial setup, retry policies, and proper resource cleanup.
+
+Create a new file named `IgniteConnection.java` in the `src/main/java/com/example/transit` directory:
 
 ```java
 package com.example.transit;
@@ -168,6 +232,7 @@ public class IgniteConnection {
      * The client connects to a local Ignite 3 cluster running on the default port.
      *
      * @return An initialized IgniteClient instance
+     * @throws RuntimeException if the connection cannot be established
      */
     public static synchronized IgniteClient getClient() {
         if (igniteClient == null) {
@@ -215,9 +280,19 @@ public class IgniteConnection {
 }
 ```
 
-## Testing the Connection
+This singleton class provides a central point for obtaining and managing the connection to your Ignite cluster. Key features include:
 
-Now, let's create a class to test our connection to the Ignite cluster and outputs some interesting facts:
+- **Lazy initialization**: The connection is only established when first needed
+- **Connection pooling**: The same client instance is reused across the application
+- **High availability**: Multiple node addresses ensure the application can connect even if one node is down
+- **Automatic retries**: The RetryReadPolicy helps maintain resilience during temporary network issues
+- **Proper resource cleanup**: The close method ensures resources are released when the application shuts down
+
+## Testing Your Connection
+
+Let's create a simple test class to verify that your connection to the Ignite cluster works correctly.
+
+Create a file named `IgniteClusterTest.java`:
 
 ```java
 package com.example.transit;
@@ -270,6 +345,7 @@ public class IgniteClusterTest {
 
     /**
      * Configure logging to completely suppress all log messages.
+     * This is useful for tests to keep the console output to a minimum.
      */
     private static void configureLogging() {
         // Get the Logback root logger and set it to OFF
@@ -392,15 +468,56 @@ public class IgniteClusterTest {
 }
 ```
 
-Congratulations! You have an Apache Ignite 3 cluster running locally in Docker and have successfully connected to it using the Java API. You are ready to move on and learn how we will use the General Transit Feed Specification (GTFS) as the data source in our application.
+### Running the Connection Test
 
-## Additional Information
+To run the test:
 
-Not every developer does things the same way. You may develop using VS Code or NeoVim or an IDE like IntelliJ IDEA. Here are some hints to help you get this running in your environment.
+1. Compile your project: `mvn compile`
+2. Execute the test class: `mvn exec:java -Dexec.mainClass="com.example.transit.IgniteClusterTest"`
 
-### Setting Up the Project in IntelliJ IDEA
+If everything is set up correctly, you should see output confirming the connection to your Ignite cluster, along with details about the connected nodes, client configuration, and available resources.
 
-To create this project in IntelliJ IDEA:
+> **Troubleshooting:** If you encounter connection issues, check that:
+>
+> - Your Docker containers are running (`docker compose ps`)
+> - The cluster is initialized (`cluster init` was successful)
+> - All ports are correctly mapped and not in use by other applications
+
+```mermaid
+sequenceDiagram
+    participant App as Java Application
+    participant Connection as IgniteConnection
+    participant Client as IgniteClient
+    participant Node as Ignite Cluster
+    
+    App->>Connection: getClient()
+    activate Connection
+    alt client is null
+        Connection->>Client: builder().addresses(...).build()
+        Client->>Node: Connect to cluster
+        Node-->>Client: Connection established
+        Client-->>Connection: Return client instance
+    else client exists
+        Connection-->>App: Return existing client
+    end
+    deactivate Connection
+    
+    App->>Client: clusterNodes()
+    Client->>Node: Request cluster topology
+    Node-->>Client: Return node information
+    Client-->>App: Display cluster overview
+    
+    App->>Connection: close()
+    Connection->>Client: close()
+    Client->>Node: Disconnect
+    Client-->>Connection: Resources released
+```
+
+## Development Environment Options
+
+While the tutorial uses Maven and command-line operations, you can adapt the approach to your preferred development environment:
+
+### IntelliJ IDEA Setup
 
 1. Open IntelliJ IDEA
 2. Select **File > New > Project**
@@ -412,23 +529,33 @@ To create this project in IntelliJ IDEA:
 8. Create the Java classes in this package
 9. Create the `docker-compose.yml` file in the project root
 
-### Running the Application via Command Line
+### Visual Studio Code Setup
 
-To run the application:
+1. Create a new folder for your project
+2. Open the folder in VS Code
+3. Create the `pom.xml` file with our configuration
+4. Create a `src/main/java/com/example/transit` directory structure
+5. Add the Java files to this directory
+6. Create the `docker-compose.yml` file in the project root
+7. Use the Java extension to run the application
 
-1. Start the Ignite cluster using Docker Compose:
+### Using Other Editors
 
-   ```bash
-   docker compose up -d
-   ```
+If you prefer another editor:
 
-2. Initialize the cluster using the Ignite CLI as described [above](#initializing-the-cluster)
+1. Create the project structure manually
+2. Use the editor's Maven integration or command-line Maven to build
+3. Ensure your editor's Java extension can resolve the dependencies in the `pom.xml`
 
-3. Compile and run the test application:
+## Next Steps
 
-   ```bash
-   mvn clean package
-   java -cp target/transit-monitoring-1.0.jar com.example.transit.IgniteClusterTest
-   ```
+Congratulations! You've now set up a complete development environment for our transit monitoring application:
 
-If everything is set up correctly, you should see output confirming a successful connection to the Ignite cluster, along with information about the connected nodes and client configuration.
+- A three-node Ignite cluster running in Docker containers
+- A Maven project with all necessary dependencies
+- A robust connection management class
+- A test application that verifies connectivity
+
+This foundation gives us everything we need to start building our transit monitoring application. In the next module, we'll explore the GTFS data format and design our schema for storing transit data in Ignite.
+
+> **Next Steps:** Continue to [Module 3: Understanding GTFS Data and Creating the Transit Schema](03-understanding-gtfs.md) to learn how to model transit data and create the appropriate schema in Ignite.
