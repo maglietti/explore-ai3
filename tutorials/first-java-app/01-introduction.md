@@ -64,7 +64,7 @@ Before starting this tutorial, please ensure you have:
 This tutorial is designed as a progressive journey through building a complete application:
 
 ```mermaid
-graph TD
+graph LR
     A[Project Setup] --> B[Understanding GTFS Data]
     B --> C[Schema Creation]
     C --> D[GTFS Client Implementation]
@@ -72,7 +72,6 @@ graph TD
     E --> F[SQL Querying]
     F --> G[Service Monitoring]
     G --> H[Application Integration]
-    H --> I[Conclusion & Next Steps]
 ```
 
 Each module builds on the previous ones, introducing new concepts while reinforcing what you've already learned. The code examples are designed to work together as a cohesive application, but each component also illustrates standalone concepts that can be applied to other projects.

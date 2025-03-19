@@ -613,7 +613,7 @@ This approach ensures regular monitoring without blocking the main application t
 
 ## Testing the Service Monitor
 
-Let's create a simple test application to verify our service monitor:
+Let's create a simple test application to verify our service monitor. Create a file `ServiceMonitorTest.java`:
 
 ```java
 package com.example.transit;
@@ -678,6 +678,14 @@ public class ServiceMonitorTest {
     }
 }
 ```
+
+Execute the test to validate the service monitor:
+
+```bash
+mvn compile exec:java -Dexec.mainClass="com.example.transit.ServiceMonitorTest"
+```
+
+> Note: Hit ENTER to end the Service Monitor Test.
 
 ## The Monitoring Process Workflow
 

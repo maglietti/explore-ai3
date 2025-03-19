@@ -6,7 +6,7 @@ In this module, you'll learn about the General Transit Feed Specification (GTFS)
 
 The [General Transit Feed Specification](https://gtfs.org) (GTFS) has become the universal language of public transportation data. Created through a collaboration between Google and Portland's TriMet transit agency in 2006, it's now the industry standard used by transit agencies worldwide to share transit information in a consistent, machine-readable format.
 
-GTFS comes in two complementary formats:
+GTFS comes in two formats:
 
 ```mermaid
 graph LR
@@ -62,6 +62,8 @@ For our application, we'll focus on the most essential fields: vehicle ID, route
 ## Modeling the Data: From Specification to Java Objects
 
 Now that we understand what data we're working with, let's transform these transit concepts into code. We need a clean, intuitive model that captures the essence of a vehicle's position in the transit network.
+
+Create a file named `VehiclePosition.java`:
 
 ```java
 package com.example.transit;

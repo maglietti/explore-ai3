@@ -477,42 +477,6 @@ To run the test:
 
 If everything is set up correctly, you should see output confirming the connection to your Ignite cluster, along with details about the connected nodes, client configuration, and available resources.
 
-> **Troubleshooting:** If you encounter connection issues, check that:
->
-> - Your Docker containers are running (`docker compose ps`)
-> - The cluster is initialized (`cluster init` was successful)
-> - All ports are correctly mapped and not in use by other applications
-
-```mermaid
-sequenceDiagram
-    participant App as Java Application
-    participant Connection as IgniteConnection
-    participant Client as IgniteClient
-    participant Node as Ignite Cluster
-    
-    App->>Connection: getClient()
-    activate Connection
-    alt client is null
-        Connection->>Client: builder().addresses(...).build()
-        Client->>Node: Connect to cluster
-        Node-->>Client: Connection established
-        Client-->>Connection: Return client instance
-    else client exists
-        Connection-->>App: Return existing client
-    end
-    deactivate Connection
-    
-    App->>Client: clusterNodes()
-    Client->>Node: Request cluster topology
-    Node-->>Client: Return node information
-    Client-->>App: Display cluster overview
-    
-    App->>Connection: close()
-    Connection->>Client: close()
-    Client->>Node: Disconnect
-    Client-->>Connection: Resources released
-```
-
 ## Development Environment Options
 
 While the tutorial uses Maven and command-line operations, you can adapt the approach to your preferred development environment:
