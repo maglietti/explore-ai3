@@ -216,16 +216,12 @@ public class TransitMonitoringApp {
      */
     private void testGtfsConnection() throws Exception {
         try {
-            // We can't directly call private methods in DataIngestionService
-            // Instead, we'll check if we can get statistics from the service
+            // heck if we can get statistics from the service
             DataIngestionService.IngestStats stats = ingestionService.getStatistics();
 
-            // Since we haven't started the service yet, we can only verify it's initialized
             TerminalUtils.logInfo(TerminalUtils.ANSI_GREEN + "GTFS feed client initialized successfully." + TerminalUtils.ANSI_RESET);
             TerminalUtils.logInfo("Connection will be tested when the ingestion service starts.");
 
-            // Note: The actual connection will be tested when the ingestion service starts
-            // and tries to fetch data for the first time
         } catch (Exception e) {
             TerminalUtils.logError("GTFS client initialization failed: " + e.getMessage());
             throw e;
