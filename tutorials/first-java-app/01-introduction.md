@@ -2,7 +2,7 @@
 
 ## Introduction
 
-In this hands-on tutorial, you'll build a real-time transit monitoring system that demonstrates Apache Ignite 3's distributed data capabilities. Through this practical project, you'll experience firsthand how Ignite enables rapid development of applications that require high throughput, low latency, and resilient data processing.
+In this hands-on tutorial, you'll build a real-time transit monitoring system that demonstrates Apache Ignite 3's distributed data capabilities. Through this project, you'll experience firsthand how Ignite enables rapid development of applications that require high throughput, low latency, and resilient data processing.
 
 Transit data provides an ideal context for learning Ignite because it combines several challenging characteristics found in modern applications:
 
@@ -12,13 +12,13 @@ Transit data provides an ideal context for learning Ignite because it combines s
 - **Complex queries** for analyzing system performance
 - **Continuous monitoring** for detecting service anomalies
 
-By the end of this 40-minute tutorial, you'll have built a complete application that:
+By completing this tutorial, you'll have:
 
-- Connects to industry-standard GTFS transit feeds to obtain live vehicle data
-- Persists vehicle positions in a distributed Ignite database for real-time and historical access
-- Executes complex SQL queries to extract actionable insights
-- Monitors transit service disruptions through automated data analysis
-- Presents system status through a simple dashboard interface
+- A functional transit monitoring application with source code
+- A running Ignite cluster with populated data
+- A collection of reusable code components for working with Ignite
+- Practical experience with Ignite's core features
+- Knowledge to build your own distributed data applications
 
 ## What You'll Learn
 
@@ -53,8 +53,13 @@ Throughout this tutorial, you'll gain hands-on experience with key Apache Ignite
 Before starting this tutorial, please ensure you have:
 
 - **Java 11 or later** installed and properly configured
-- **Maven or Gradle** for dependency management
-- **Docker** for running the Ignite 3 cluster
+  - Verify with `java --version` in your terminal
+  - JDK 17 is recommended for best compatibility
+- **Maven 3.6+** for dependency management
+  - Verify with `mvn --version`
+- **Docker 20.10+** and Docker Compose for running the Ignite 3 cluster
+  - Verify with `docker --version` and `docker-compose --version`
+- **IDE** such as IntelliJ IDEA or VS Code with Java extensions
 - **Basic Java knowledge**, including familiarity with classes, interfaces, and collections
 - **Some SQL experience** for understanding the query examples
 - **Completed the "Use the Java API" How-To guide** (recommended but not required)
