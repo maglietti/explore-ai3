@@ -248,11 +248,14 @@ Inside the CLI:
 1. Connect to a node: `connect http://localhost:10300`
 2. Initialize the cluster: `cluster init --name=ignite3 --metastorage-group=node1,node2,node3`
 
-> **Note**: The initialization step creates essential system tables and structures in the Ignite cluster. The metastorage group defines which nodes will store this critical system information, with enough redundancy to maintain availability if one node fails.
+>[!note]
+> The initialization step creates essential system tables and structures in the Ignite cluster. The metastorage group defines which nodes will store this critical system information, with enough redundancy to maintain availability if one node fails.
 
-> **Important:** The initialization step is only performed once for a new cluster. If the command returns an error indicating the cluster is already initialized, you can proceed to the next step.
+>[!warning]
+> The initialization step is only performed once for a new cluster. If the command returns an error indicating the cluster is already initialized, you can proceed to the next step.
 
-> **Checkpoint #3**: After running the initialization command, you should see a success message. If you see "Cluster initialized successfully" or a message indicating the cluster is already initialized, you can proceed to the next step.
+> [!important]
+> **Checkpoint**: After running the initialization command, you should see a success message. If you see "Cluster initialized successfully" or a message indicating the cluster is already initialized, you can proceed to the next step.
 
 ## Creating the Ignite Connection Manager
 
@@ -530,8 +533,9 @@ To run the test:
 
 If everything is set up correctly, you should see output confirming the connection to your Ignite cluster, along with details about the connected nodes, client configuration, and available resources.
 
-> **Expected Output**: You should see a successful connection message and information about the three nodes in your cluster. The output should confirm that you're connected to at least one of the nodes.
+**Expected Output**: You should see a successful connection message and information about the three nodes in your cluster. The output should confirm that you're connected to at least one of the nodes.
 
+> [!important]
 > **Checkpoint #4**: After running the connection test, you should see a successful connection message and information about all three nodes in your cluster. If you see "CONNECTION SUCCESSFUL!" near the end of the output, your connection is working properly.
 
 ## Development Environment Options
