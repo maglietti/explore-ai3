@@ -2,8 +2,7 @@
 
 In this module, you'll learn how to leverage Apache Ignite's SQL capabilities to extract meaningful insights from your transit data. By understanding key query patterns, you'll be able to answer important operational questions about your transit system in real-time using the Ignite CLI.
 
-> **Note to Readers**
->
+> [!note]
 > This module on SQL queries is designed to help you understand how to extract insights from your transit data using Apache Ignite's SQL capabilities. While the knowledge gained here will enhance your understanding of the transit monitoring system, **this module is optional** and can be skipped if you'd prefer to complete the application first.
 >
 > You can always return to this module later to learn how to create custom queries for analyzing your transit data. If you choose to skip ahead, continue to [Module 7: Adding a Service Monitor](07-continuous-query.md) to implement the monitoring system that detects service disruptions.
