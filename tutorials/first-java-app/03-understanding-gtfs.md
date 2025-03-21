@@ -41,23 +41,31 @@ graph LR
 
 For our transit monitoring system, we'll focus on the **[Vehicle Positions](https://gtfs.org/documentation/realtime/reference/#message-vehicleposition)** component of GTFS Realtime. This gives us a continuous stream of data points showing where each transit vehicle is located, what route it's serving, and its current status (in transit, stopped at a location, etc.).
 
+> **Note**: GTFS-realtime data is typically delivered as Protocol Buffer messages, a binary serialization format developed by Google. While we won't delve into the details of Protocol Buffers in this tutorial, our client library will handle the parsing for us.
+
 ## Analyzing the Data: What's in a Vehicle Position?
 
 Before designing our schema, let's examine what information is available in a GTFS vehicle position record:
 
-| Field | Description | Example |
-|-------|-------------|---------|
-| Vehicle ID | Unique identifier for the vehicle | "1234" |
-| Route ID | Identifier for the route the vehicle is servicing | "42" |
-| Trip ID | Identifier for the specific trip being made | "trip_morning_1" |
-| Position | Latitude and longitude coordinates | (37.7749, -122.4194) |
-| Timestamp | When the position was recorded | 1616724123000 |
-| Status | Current status of the vehicle | "IN_TRANSIT_TO", "STOPPED_AT" |
-| Stop ID | Identifier of the stop if the vehicle is stopped | "stop_downtown_3" |
-| Congestion Level | Level of traffic congestion | "RUNNING_SMOOTHLY" |
-| Occupancy Status | How full the vehicle is | "MANY_SEATS_AVAILABLE" |
+| Field | Description | Example | Will We Use It? |
+|-------|-------------|---------|----------------|
+| Vehicle ID | Unique identifier for the vehicle | "1234" | Yes - Primary key |
+| Route ID | Identifier for the route the vehicle is servicing | "42" | Yes - For filtering |
+| Trip ID | Identifier for the specific trip being made | "trip_morning_1" | No - Not needed for monitoring |
+| Position | Latitude and longitude coordinates | (37.7749, -122.4194) | Yes - For mapping |
+| Timestamp | When the position was recorded | 1616724123000 | Yes - Primary key component |
+| Status | Current status of the vehicle | "IN_TRANSIT_TO", "STOPPED_AT" | Yes - For monitoring |
+| Stop ID | Identifier of the stop if the vehicle is stopped | "stop_downtown_3" | No - Not needed for basic monitoring |
+| Congestion Level | Level of traffic congestion | "RUNNING_SMOOTHLY" | No - Not in scope |
+| Occupancy Status | How full the vehicle is | "MANY_SEATS_AVAILABLE" | No - Not in scope |
 
 For our application, we'll focus on the most essential fields: vehicle ID, route ID, position coordinates, timestamp, and status. This gives us the core information needed for monitoring while keeping our schema clean and focused.
+
+> **Checkpoint #1**: Before continuing, make sure you understand:
+>
+> - The difference between GTFS Static and GTFS Realtime
+> - What data is available in a vehicle position record
+> - Which fields we'll use in our application and why
 
 ## Modeling the Data: From Specification to Java Objects
 
@@ -184,6 +192,16 @@ public class VehiclePosition implements Serializable {
 
 This model is our translator between the GTFS protocol buffer format and a straightforward Java object that's easy to work with in our application. Each instance represents a snapshot of a vehicle at a specific moment in time.
 
+> **Note**: The `Serializable` interface is implemented to ensure our class can be easily serialized and deserialized across the network or to disk if needed. The `serialVersionUID` helps maintain compatibility if the class definition changes over time.
+
+> **Checkpoint #2**: After creating the `VehiclePosition` class, compile it to ensure there are no syntax errors:
+>
+> ```bash
+> mvn compile
+> ```
+>
+> If the compilation succeeds without errors, your domain model is correctly implemented.
+
 ## Designing an Ignite Schema: Data Modeling Considerations
 
 Before writing the schema creation code, let's consider the requirements for our transit data storage:
@@ -304,6 +322,8 @@ This schema creation code:
 4. Handles errors with detailed reporting
 5. Returns a success/failure indicator
 
+> **Note**: The `.ifNotExists()` method ensures the table creation statement won't fail if the table already exists. This makes our schema setup idempotent, meaning it can be run multiple times without causing errors or duplicate tables.
+
 ### Schema Design Decisions Explained
 
 Let's take a closer look at some key decisions in our schema design:
@@ -335,6 +355,14 @@ classDiagram
 
 3. **Table Name**:
    We chose a clear, descriptive name (`vehicle_positions`) that follows SQL naming conventions.
+
+> **Note**: We didn't create separate secondary indexes in this schema since our query patterns will primarily use the composite primary key. In a production system, you might add additional indexes for specific query patterns, such as a spatial index for geographic queries or an index on `route_id` for filtering by route.
+
+> **Checkpoint #3**: Review the schema design and ensure you understand:
+>
+> - Why we're using a composite primary key
+> - The purpose of each column and its data type
+> - How the schema supports our query patterns
 
 ## Testing the Schema
 
@@ -502,6 +530,8 @@ This test class performs a complete cycle of operations:
 6. Verifies the deletion was successful
 7. Cleans up resources
 
+> **Note**: Notice the conversion between Java's `Instant` and SQL's `TIMESTAMP` (represented as `LocalDateTime` in Java). This conversion is necessary because Ignite's JDBC driver expects temporal data in `LocalDateTime` format rather than as epoch milliseconds.
+
 ## The Architecture Behind the Schema
 
 Our schema design follows several important principles that enable effective real-time transit monitoring while leveraging Apache Ignite 3's distributed architecture:
@@ -554,6 +584,8 @@ This colocation brings several significant benefits:
 
 For example, when tracking a specific vehicle's path over time, Ignite can execute the query entirely on the node containing that vehicle's data, avoiding costly network transfers between nodes.
 
+> **Note**: The first part of a composite primary key (in our case, `vehicle_id`) is used as the affinity key by default in Ignite. This means data with the same vehicle ID will be stored on the same node, optimizing queries that search for a specific vehicle's history.
+
 ## Executing the Schema Test
 
 To run the schema test:
@@ -563,6 +595,25 @@ mvn compile exec:java -Dexec.mainClass="com.example.transit.SchemaSetupTest"
 ```
 
 When executed successfully, you'll see output confirming the schema creation, record insertion, query, and deletion operations. This validates that your Ignite cluster is correctly configured for storing transit data.
+
+> **Expected Output**: You should see successful connection, table creation, record insertion, querying, and deletion messages. The test should complete with "Test completed, resources cleaned up."
+
+> **Checkpoint #4**: After running the schema test:
+>
+> - Verify all operations (create, insert, query, delete) completed successfully
+> - Check that no exceptions were thrown during the test
+> - Ensure the connection was properly closed at the end
+
+## Common Data Modeling Patterns for Time-Series Data
+
+Our transit monitoring application follows common patterns for modeling time-series data in distributed databases:
+
+1. **Composite Keys**: Using a composite key of entity ID + timestamp creates a natural order for time-series data
+2. **Column Families**: Grouping related data fields together (vehicle information, location, status)
+3. **Data Colocation**: Ensuring related time-series points are stored together
+4. **Time-Based Partitioning**: As data grows, it can be partitioned by time ranges
+
+These patterns apply beyond transit monitoring to many time-series applications, including IoT monitoring, financial trading data, and performance metrics.
 
 ## Next Steps
 
@@ -575,5 +626,13 @@ Congratulations! You've now:
 5. Learned about the distributed architecture supporting your application
 
 This schema provides the foundation for our transit monitoring system. In the next module, we'll build a client to fetch real-time GTFS data from a transit agency and feed it into our Ignite database.
+
+> **Final Module Checkpoint**: Before proceeding to the next module, ensure:
+>
+> - The `VehiclePosition` class compiles without errors
+> - You understand the schema design and its relationship to the data model
+> - The schema creation test runs successfully
+> - You can explain how the composite primary key helps with data organization and query performance
+> - You understand how Ignite's data colocation feature improves query performance
 
 > **Next Steps:** Continue to [Module 4: Building the GTFS Client](04-gtfs-client.md) to implement the component that will connect to real-time transit data feeds.

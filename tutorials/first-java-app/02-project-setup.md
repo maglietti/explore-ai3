@@ -86,11 +86,15 @@ Start by creating a Maven `pom.xml` file with the necessary dependencies for you
 
 This Maven configuration includes:
 
-- Apache Ignite client library for connecting to an Ignite cluster
-- MobilityData [GTFS-realtime API](https://github.com/MobilityData/gtfs-realtime-bindings) for parsing transit data
-- [Logback](https://github.com/qos-ch/logback) for structured logging
-- Google [dotenv-java](https://github.com/cdimascio/dotenv-java) for configuration
-- Maven Shade plugin to create an executable JAR with all dependencies
+- **Apache Ignite client library**: Enables connection to an Ignite cluster
+- **MobilityData GTFS-realtime API**: Provides tools for parsing transit data
+- **Logback**: Implements structured logging for application events
+- **dotenv-java**: Manages configuration variables securely
+- **Maven Shade plugin**: Creates an executable JAR with all dependencies
+
+> **Note**: Maven is a build automation tool that manages project dependencies and builds. The `pom.xml` file defines what libraries your project needs, and Maven automatically downloads them. The `dependencies` section lists required libraries, while the `plugins` section configures build tools.
+
+> **Checkpoint #1**: After creating the `pom.xml` file, run `mvn verify` in your terminal from the project directory. Maven should download all dependencies without errors. If you see "BUILD SUCCESS", your Maven configuration is correct.
 
 ## Understanding Ignite's Client-Server Architecture
 
@@ -106,6 +110,25 @@ Unlike in Ignite 2.x, Ignite 3 exclusively uses the thin client model. This sepa
 3. **Operational Simplicity**: Server nodes can be deployed and scaled independently
 
 In our application, we'll use Java thin clients to connect to a cluster of Ignite server nodes running in Docker containers.
+
+```mermaid
+graph TD
+    subgraph "Ignite Cluster"
+        Node1[Server Node 1]
+        Node2[Server Node 2]
+        Node3[Server Node 3]
+    end
+    
+    subgraph "Our Application"
+        Client[Java Thin Client]
+    end
+    
+    Client --> Node1
+    Client --> Node2
+    Client --> Node3
+```
+
+> **Note**: Think of Ignite server nodes as database servers that work together to store data. The client is like a database connector in your application code. The thin client approach means your application only needs a lightweight connection to the cluster, not a full Ignite instance running inside your application.
 
 ## Setting Up Your Ignite Cluster
 
@@ -158,6 +181,8 @@ configs:
       }
 ```
 
+> **Note**: Docker Compose helps run multiple related containers together. This file defines three Ignite server nodes that will form our cluster. Each node gets 4GB of memory and exposes specific ports for communication. The `configs` section provides shared configuration to all nodes.
+
 This configuration creates a three-node Ignite cluster running in Docker containers. Each node is configured with:
 
 - 4GB of memory allocation
@@ -181,6 +206,8 @@ ignite3-node2-1     "/opt/ignite/bin/ign…"   node2               running      
 ignite3-node3-1     "/opt/ignite/bin/ign…"   node3               running             0.0.0.0:10302->10300/tcp, 0.0.0.0:10802->10800/tcp
 ```
 
+> **Checkpoint #2**: All three containers should be in "running" status after executing the Docker Compose command. If you see all three containers with "running" status, your Ignite cluster is properly started.
+
 ### Understanding Ignite Ports
 
 In our Docker Compose configuration, we're exposing two ports for each node:
@@ -189,6 +216,17 @@ In our Docker Compose configuration, we're exposing two ports for each node:
 - **10800-10802**: The client connection ports used by our Java application
 
 These ports follow Ignite 3's network architecture, which separates client traffic from administrative operations.
+
+```mermaid
+graph LR
+    Client[Java Application] --> |10800-10802| Data[Data Operations]
+    Admin[Admin Tools] --> |10300-10302| Management[Management Operations]
+    
+    subgraph "Ignite Node"
+        Data
+        Management
+    end
+```
 
 ### Initializing the Cluster
 
@@ -205,7 +243,11 @@ Inside the CLI:
 1. Connect to a node: `connect http://localhost:10300`
 2. Initialize the cluster: `cluster init --name=ignite3 --metastorage-group=node1,node2,node3`
 
+> **Note**: The initialization step creates essential system tables and structures in the Ignite cluster. The metastorage group defines which nodes will store this critical system information, with enough redundancy to maintain availability if one node fails.
+
 > **Important:** The initialization step is only performed once for a new cluster. If the command returns an error indicating the cluster is already initialized, you can proceed to the next step.
+
+> **Checkpoint #3**: After running the initialization command, you should see a success message. If you see "Cluster initialized successfully" or a message indicating the cluster is already initialized, you can proceed to the next step.
 
 ## Creating the Ignite Connection Manager
 
@@ -280,6 +322,8 @@ public class IgniteConnection {
 }
 ```
 
+> **Note**: This class uses the "singleton" pattern, which ensures we only create one connection to our Ignite cluster that's shared throughout the application. The `synchronized` keyword ensures thread safety, and the `RetryReadPolicy` automatically handles temporary connection issues.
+
 This singleton class provides a central point for obtaining and managing the connection to your Ignite cluster. Key features include:
 
 - **Lazy initialization**: The connection is only established when first needed
@@ -290,7 +334,7 @@ This singleton class provides a central point for obtaining and managing the con
 
 ## Testing Your Connection
 
-Let's create a simple test class to verify that your connection to the Ignite cluster works correctly.
+Let's create a test class to verify that your connection to the Ignite cluster works correctly.
 
 Create a file named `IgniteClusterTest.java`:
 
@@ -468,6 +512,8 @@ public class IgniteClusterTest {
 }
 ```
 
+> **Note**: This test class demonstrates how to connect to the Ignite cluster and gather basic information about it. The `testConnection` method explores different aspects of the cluster, like how many nodes are running and what configuration is being used.
+
 ### Running the Connection Test
 
 To run the test:
@@ -476,6 +522,10 @@ To run the test:
 2. Execute the test class: `mvn exec:java -Dexec.mainClass="com.example.transit.IgniteClusterTest"`
 
 If everything is set up correctly, you should see output confirming the connection to your Ignite cluster, along with details about the connected nodes, client configuration, and available resources.
+
+> **Expected Output**: You should see a successful connection message and information about the three nodes in your cluster. The output should confirm that you're connected to at least one of the nodes.
+
+> **Checkpoint #4**: After running the connection test, you should see a successful connection message and information about all three nodes in your cluster. If you see "CONNECTION SUCCESSFUL!" near the end of the output, your connection is working properly.
 
 ## Development Environment Options
 
@@ -511,6 +561,26 @@ If you prefer another editor:
 2. Use the editor's Maven integration or command-line Maven to build
 3. Ensure your editor's Java extension can resolve the dependencies in the `pom.xml`
 
+## Directory Structure
+
+By the end of this module, your project structure should look like this:
+
+```shell
+transit-monitoring/
+├── pom.xml
+├── docker-compose.yml
+├── src/
+│   └── main/
+│       └── java/
+│           └── com/
+│               └── example/
+│                   └── transit/
+│                       ├── IgniteConnection.java
+│                       └── IgniteClusterTest.java
+```
+
+> **Checkpoint #5**: Verify your project structure matches the one above. All Java files should be in the correct package structure, and your `pom.xml` and `docker-compose.yml` files should be in the project root.
+
 ## Next Steps
 
 Congratulations! You've now set up a complete development environment for our transit monitoring application:
@@ -521,5 +591,12 @@ Congratulations! You've now set up a complete development environment for our tr
 - A test application that verifies connectivity
 
 This foundation gives us everything we need to start building our transit monitoring application. In the next module, we'll explore the GTFS data format and design our schema for storing transit data in Ignite.
+
+> **Final Module Checkpoint**: Before proceeding to the next module, ensure:
+>
+> - Your Ignite cluster is running (all three containers in "running" state)
+> - The connection test completes successfully
+> - You can compile the project without errors
+> - You understand the basic client-server architecture of Ignite 3
 
 > **Next Steps:** Continue to [Module 3: Understanding GTFS Data and Creating the Transit Schema](03-understanding-gtfs.md) to learn how to model transit data and create the appropriate schema in Ignite.

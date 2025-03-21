@@ -39,6 +39,15 @@ This architecture demonstrates several important design principles:
 4. **Configuration Management**: External configuration keeps credentials secure
 5. **Resource Lifecycle**: Components are properly started and stopped
 
+> **Note**: This architecture follows the Single Responsibility Principle, where each component has one primary function. This makes the system easier to understand, test, and maintain. It also allows components to be developed and tested independently before being integrated into the complete application.
+
+> **Checkpoint #1**: Review the architecture diagram and make sure you understand:
+>
+> - The purpose of each component
+> - How data flows through the system
+> - How components interact with each other
+> - The central role of the main application in orchestrating components
+
 ## Creating the Main Application
 
 The `TransitMonitoringApp` class serves as our application's entry point, bringing together all the components we've developed:
@@ -664,161 +673,14 @@ public class TransitMonitoringApp {
 }
 ```
 
-And it's supporting `TerminalUtils` utility class.
+> **Note**: The `TerminalUtils` class provides terminal manipulation and formatting functions that improve the user experience. The ANSI escape codes allow for colored text and visual effects in terminal environments that support them, which helps make the dashboard more readable and visually appealing.
 
-```java
-package com.example.transit;
-
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
-
-/**
- * Utility class for terminal output and formatting.
- * This class provides common terminal operations like:
- * - ANSI color codes for text formatting
- * - Screen clearing and animation
- * - Logging utilities with timestamp
- * - Text formatting utilities
- */
-public class TerminalUtils {
-    // Terminal colors - ANSI escape codes
-    public static final String ANSI_RESET = "\u001B[0m";
-    public static final String ANSI_RED = "\u001B[31m";
-    public static final String ANSI_GREEN = "\u001B[32m";
-    public static final String ANSI_YELLOW = "\u001B[33m";
-    public static final String ANSI_BLUE = "\u001B[34m";
-    public static final String ANSI_BRIGHT_BLUE = "\u001B[94m";
-    public static final String ANSI_CYAN = "\u001B[36m";
-    public static final String ANSI_BOLD = "\u001B[1m";
-
-    // Date and time formatters
-    public static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm:ss");
-    public static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
-
-    /**
-     * Clears the terminal screen
-     */
-    public static void clearScreen() {
-        System.out.print("\033[H\033[2J");
-        System.out.flush();
-    }
-
-    /**
-     * Shows a simple startup animation using ASCII art
-     */
-    public static void showStartupAnimation() {
-        String[] frames = {
-                "Starting Transit Monitor [    ]",
-                "Starting Transit Monitor [=   ]",
-                "Starting Transit Monitor [==  ]",
-                "Starting Transit Monitor [=== ]",
-                "Starting Transit Monitor [====]"
-        };
-
-        try {
-            for (String frame : frames) {
-                System.out.print("\r" + ANSI_CYAN + frame + ANSI_RESET);
-                Thread.sleep(200);
-            }
-            System.out.println();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
-    }
-
-    /**
-     * Shows a simple shutdown animation
-     */
-    public static void showShutdownAnimation() {
-        String[] frames = {
-                "Stopping system [====]",
-                "Stopping system [=== ]",
-                "Stopping system [==  ]",
-                "Stopping system [=   ]",
-                "Stopping system [    ]"
-        };
-
-        try {
-            for (String frame : frames) {
-                System.out.print("\r" + ANSI_YELLOW + frame + ANSI_RESET);
-                Thread.sleep(200);
-            }
-            System.out.println();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
-    }
-
-    /**
-     * Get the current terminal width if possible
-     */
-    public static int getTerminalWidth() {
-        try {
-            return Integer.parseInt(System.getenv("COLUMNS"));
-        } catch (Exception e) {
-            return 80; // Default width
-        }
-    }
-
-    /**
-     * Prints a centered box with a title
-     */
-    public static void printCenteredBox(String title, int width) {
-        int boxWidth = Math.min(width, 80);
-        int padding = (boxWidth - title.length()) / 2;
-
-        System.out.println(ANSI_BRIGHT_BLUE + "╔" + "═".repeat(boxWidth - 2) + "╗" + ANSI_RESET);
-        System.out.println(ANSI_BRIGHT_BLUE + "║" + " ".repeat(padding) +
-                ANSI_BOLD + title + ANSI_RESET + ANSI_BRIGHT_BLUE +
-                " ".repeat(boxWidth - title.length() - padding - 2) + "║" + ANSI_RESET);
-        System.out.println(ANSI_BRIGHT_BLUE + "╚" + "═".repeat(boxWidth - 2) + "╝" + ANSI_RESET);
-    }
-
-    /**
-     * Prints the welcome banner
-     */
-    public static void printWelcomeBanner() {
-        System.out.println(ANSI_CYAN + "╔══════════════════════════════════════════════════════════════╗");
-        System.out.println("║                TRANSIT MONITORING SYSTEM                    ║");
-        System.out.println("║                      v1.0.0                                 ║");
-        System.out.println("╚══════════════════════════════════════════════════════════════╝" + ANSI_RESET);
-    }
-
-    /**
-     * Formats a duration in seconds to a human-readable format
-     */
-    public static String formatDuration(long seconds) {
-        long hours = seconds / 3600;
-        long minutes = (seconds % 3600) / 60;
-        long secs = seconds % 60;
-
-        return String.format("%02d:%02d:%02d", hours, minutes, secs);
-    }
-
-    /**
-     * Formats a threshold name for display
-     */
-    public static String formatThresholdName(String key) {
-        // Convert camelCase to Title Case with spaces
-        String result = key.replaceAll("([a-z])([A-Z])", "$1 $2");
-        return result.substring(0, 1).toUpperCase() + result.substring(1);
-    }
-
-    /**
-     * Logs an informational message with timestamp.
-     */
-    public static void logInfo(String message) {
-        System.out.println("[" + LocalDateTime.now().format(TIME_FORMATTER) + "] " + ANSI_GREEN + "INFO: " + ANSI_RESET + message);
-    }
-
-    /**
-     * Logs an error message with timestamp.
-     */
-    public static void logError(String message) {
-        System.err.println("[" + LocalDateTime.now().format(TIME_FORMATTER) + "] " + ANSI_RED + "ERROR: " + ANSI_RESET + message);
-    }
-}
-```
+> **Checkpoint #2**: Take a moment to understand the structure of the main application:
+>
+> - How it initializes and connects all the components we've developed
+> - The dashboard refresh cycle and multiple view types
+> - The proper startup and shutdown sequence
+> - How it handles user interaction
 
 ## Running the Application
 
@@ -841,27 +703,18 @@ When the application starts successfully, you'll see:
 - The console dashboard updating every few seconds
 - A prompt to press Enter to exit
 
-## Troubleshooting
+> **Note**: The application uses a rotating dashboard that cycles through three views:
+>
+> 1. **Summary View**: Shows active vehicles by route, status distribution, and ingestion statistics
+> 2. **Alerts View**: Displays service alerts and alert statistics
+> 3. **Details View**: Shows system-wide statistics, monitoring thresholds, and connection status
 
-If you encounter issues with your application, check these common areas:
-
-### Connection Problems
-
-- Verify your Ignite cluster is running with `docker compose ps`
-- Check if all nodes are initialized with the CLI's `cluster state` command
-- Examine network connectivity between your application and Docker containers
-
-### Data Issues
-
-- Validate your API token for the GTFS feed
-- Check for schema errors by examining the database directly
-- Verify timezone handling in timestamp conversions
-
-### Runtime Errors
-
-- Look for exceptions in the application logs
-- Run individual components separately to isolate issues
-- Use the Ignite CLI to verify table structure and data integrity
+> **Checkpoint #3**: After starting the application, verify that:
+>
+> - All components initialize without errors
+> - Data is being ingested (check the ingestion statistics)
+> - The dashboard updates regularly
+> - You can exit cleanly by pressing Enter
 
 ## A Complete Transit Monitoring System
 
@@ -874,6 +727,13 @@ Congratulations! You've now built a complete transit monitoring system using Apa
 5. **Manages the complete lifecycle** of all components
 
 This system demonstrates the power of Apache Ignite for real-time data processing and monitoring applications. The architecture patterns you've learned can be applied to many other domains beyond transit monitoring, including IoT systems, financial transaction monitoring, logistics tracking, and more.
+
+> **Final Checkpoint**: As you wrap up the tutorial, ensure you:
+>
+> - Understand how all components work together in the integrated application
+> - Can run the complete application and interpret its dashboard output
+> - Know how to troubleshoot common issues that might arise
+> - Have ideas for how you might extend or customize the system for your needs
 
 Thank you for completing this guide! We hope you've gained a practical understanding of Apache Ignite 3.0's capabilities for real-time data processing and monitoring applications.
 

@@ -1,6 +1,6 @@
 # Building the Data Ingestion Service
 
-In this module, you'll implement a robust data ingestion service that forms the backbone of your transit monitoring application. This service will continuously fetch vehicle position data from GTFS feeds and store it in Apache Ignite, creating the real-time data foundation needed for monitoring and analysis.
+In this module, you'll implement a data ingestion service that forms the backbone of your transit monitoring application. This service will continuously fetch vehicle position data from GTFS feeds and store it in Apache Ignite, creating the real-time data foundation needed for monitoring and analysis.
 
 ## Understanding Data Ingestion Requirements
 
@@ -20,6 +20,14 @@ graph LR
     Service --> |SQL Batch| Ignite[Apache Ignite]
     Clock[Scheduler] --> |Trigger Every N Seconds| Service
 ```
+
+> **Note**: Data ingestion is the process of importing, transferring, loading, and processing data from various sources for immediate use or storage in a database. In our case, we're ingesting real-time transit data from a GTFS feed and storing it in Apache Ignite.
+
+> **Checkpoint #1**: Before continuing, make sure you understand:
+>
+> - The key requirements for real-time data ingestion
+> - The flow of data from GTFS to our Ignite database
+> - Why periodic scheduling is necessary for real-time monitoring
 
 ## Implementing the DataIngestionService
 
@@ -343,6 +351,94 @@ public class DataIngestionService {
 }
 ```
 
+> **Note**: The `ScheduledExecutorService` is a Java concurrency utility that lets us execute tasks periodically. We're using it to repeatedly fetch and store data at fixed intervals, which is essential for real-time monitoring. The thread is marked as a daemon thread, meaning it won't prevent the JVM from shutting down when the main thread exits.
+
+## Key Components of the Data Ingestion Service
+
+Let's break down the key components of our ingestion service:
+
+### Scheduled Execution
+
+The service uses Java's `ScheduledExecutorService` to run the data fetching and storing operation at regular intervals:
+
+```java
+scheduledTask = scheduler.scheduleAtFixedRate(
+        this::fetchAndStoreData,  // Method reference to the task
+        0,                        // Initial delay (0 = start immediately)
+        intervalSeconds,          // Period between executions
+        TimeUnit.SECONDS          // Time unit for the period
+);
+```
+
+This approach allows us to maintain up-to-date data without manual intervention.
+
+### Batch Processing
+
+To improve performance, the service processes records in batches:
+
+```java
+// Process records in batches
+for (int i = 0; i < positions.size(); i += batchSize) {
+    // Determine the end index for current batch
+    int endIndex = Math.min(i + batchSize, positions.size());
+    List<VehiclePosition> batch = positions.subList(i, endIndex);
+    
+    // Process batch...
+}
+```
+
+Batch processing significantly reduces database overhead for large datasets.
+
+### Transaction Management
+
+Each batch is processed in a transaction to ensure data integrity:
+
+```java
+// Create a transaction for each batch
+var tx = igniteClient.transactions().begin();
+
+try {
+    // Insert all records in the current batch
+    for (VehiclePosition position : batch) {
+        // Insert operations...
+    }
+
+    // Commit the transaction for this batch
+    tx.commit();
+    
+} catch (Exception e) {
+    // Roll back on error
+    tx.rollback();
+    throw e;
+}
+```
+
+Transactions ensure that either all records in a batch are stored or none are, preventing partial updates.
+
+### Statistics Tracking
+
+The service tracks various performance metrics:
+
+```java
+// Statistics tracking
+private final AtomicLong totalFetched = new AtomicLong(0);
+private final AtomicLong totalStored = new AtomicLong(0);
+private final AtomicLong lastFetchCount = new AtomicLong(0);
+private final AtomicLong lastFetchTime = new AtomicLong(0);
+private long startTime;
+```
+
+These statistics provide insights into the system's performance and can help identify bottlenecks.
+
+> **Note**: `AtomicLong` is used instead of regular `long` because these variables might be accessed and modified by multiple threads. Atomic variables ensure thread-safe operations without explicit synchronization.
+
+> **Checkpoint #2**: Review the key components of the ingestion service and make sure you understand:
+>
+> - How scheduled execution works
+> - Why batch processing improves performance
+> - The role of transactions in data integrity
+> - The purpose of statistics tracking
+
 ## Data Verification Utility
 
 To ensure our data ingestion pipeline is working correctly, let's also create a verification utility that can check and analyze the data stored in Ignite.
@@ -438,10 +534,11 @@ public class DataVerifier {
 This verifier provides insights into the data we've ingested, including:
 
 - Total record count
-- Data age range
-- Sample records
+- Sample recent records
 - Route distribution
-- Status distribution
+- Overall verification of data integrity
+
+> **Note**: The verifier uses SQL queries to inspect the data in our Ignite database. This approach demonstrates the power of Ignite's SQL capabilities and how they can be used for data analysis and verification.
 
 ## Testing Your Implementation
 
@@ -635,23 +732,35 @@ public class DataIngestionTest {
 }
 ```
 
-Execute the test to validate the GTFS client:
+This test performs a complete cycle of operations:
+
+1. Set up the database schema
+2. Verify the initial data state
+3. Start the ingestion service
+4. Wait for data to be ingested
+5. Print statistics about the ingestion process
+6. Verify the final data state
+7. Stop the service and clean up resources
+
+> **Note**: The test includes a visual spinner animation to indicate progress during the waiting period. This is implemented using ANSI escape codes for terminal control and a custom `PrintStream` interceptor to handle concurrent logging output.
+
+Execute the test to validate the ingestion service:
 
 ```bash
 mvn compile exec:java -Dexec.mainClass="com.example.transit.DataIngestionTest"
 ```
 
-> Note: The test runs for 45 seconds without updating the screen most of the time.
->       Wait until you see that the test completed or failed before taking action.
+> **Note**: The test runs for 45 seconds without updating the screen most of the time.
+> Wait until you see that the test completed or failed before taking action.
 
-When you run this test, you should observe:
+> **Expected Output**: When the test completes successfully, you should see statistics about the ingestion process and verification of the data in Ignite. The test will terminate with a "Test completed successfully!" message.
 
-1. The schema being created (or verified if it already exists)
-2. The initial data state (empty or containing previous test data)
-3. The ingestion service starting and fetching data
-4. Statistics about the ingestion process
-5. Verification of the newly ingested data
-6. The service shutting down cleanly
+> **Checkpoint #3**: After running the test, verify:
+>
+> - The schema was created successfully
+> - Data was fetched and stored in the database
+> - The ingestion statistics show positive records fetched and stored
+> - The final data verification shows records in the database
 
 ## Understanding Ignite's Transactional Processing
 
@@ -680,6 +789,13 @@ try {
 }
 ```
 
+This approach provides ACID guarantees for our data operations:
+
+- **Atomicity**: All operations within a transaction either succeed or fail together
+- **Consistency**: The database remains in a valid state before and after the transaction
+- **Isolation**: Transactions are isolated from each other
+- **Durability**: Once committed, changes are permanent
+
 ### Benefits in Ignite
 
 In Apache Ignite, transactional processing provides several specific advantages:
@@ -702,6 +818,8 @@ When using transactions with batches, several factors influence the optimal batc
 
 For our transit application, a batch size of 50-200 records typically provides a good balance of performance, resource utilization, and atomicity guarantees.
 
+> **Note**: The optimal batch size varies depending on your specific hardware, network configuration, and data characteristics. It's often determined through experimentation and testing with your specific workload.
+
 ### Transaction vs. Non-Transactional Batches
 
 It's important to understand the distinction between:
@@ -712,6 +830,13 @@ It's important to understand the distinction between:
 While non-transactional batches may offer slightly higher throughput, they lack the consistency guarantees that are crucial for reliable data processing pipelines.
 
 By using transactions with appropriately sized batches, our ingestion service efficiently balances performance with data integrity requirements.
+
+> **Checkpoint #4**: Make sure you understand:
+>
+> - What ACID guarantees are and why they matter
+> - How transactions are used in our ingestion service
+> - The factors that influence optimal batch size
+> - The difference between transactional and non-transactional batches
 
 ## Next Steps
 
@@ -726,5 +851,13 @@ Congratulations! You've now implemented a robust data ingestion service that:
 This service forms the backbone of our transit monitoring system, ensuring our database is constantly updated with the latest vehicle positions.
 
 In the next module, we'll build on this foundation by implementing SQL queries to analyze the transit data and extract valuable insights about vehicle locations, route performance, and potential service disruptions.
+
+> **Final Module Checkpoint**: Before proceeding to the next module, ensure:
+>
+> - You understand how the data ingestion service works
+> - The test application runs successfully
+> - You can explain the role of transactions in maintaining data integrity
+> - You understand how the service handles failures
+> - You've considered how the service might be optimized for your specific needs
 
 > **Next Steps:** Continue to [Module 6: Exploring Transit Data with SQL Queries](06-implementing-queries.md) to learn how to extract insights from your ingested data.

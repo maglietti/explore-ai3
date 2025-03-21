@@ -2,6 +2,14 @@
 
 In this module, you'll learn how to leverage Apache Ignite's SQL capabilities to extract meaningful insights from your transit data. By understanding key query patterns, you'll be able to answer important operational questions about your transit system in real-time using the Ignite CLI.
 
+> **Note to Readers**
+>
+> This module on SQL queries is designed to help you understand how to extract insights from your transit data using Apache Ignite's SQL capabilities. While the knowledge gained here will enhance your understanding of the transit monitoring system, **this module is optional** and can be skipped if you'd prefer to complete the application first.
+>
+> You can always return to this module later to learn how to create custom queries for analyzing your transit data. If you choose to skip ahead, continue to [Module 7: Adding a Service Monitor](07-continuous-query.md) to implement the monitoring system that detects service disruptions.
+>
+> For those who are interested in data analysis or want to understand how the queries in the monitoring system work, we recommend working through this module now.
+
 ## Using the Ignite CLI for SQL Queries
 
 The Ignite CLI provides a convenient way to interact with your data using standard SQL. Before diving into specific queries, let's connect to our Ignite cluster:
@@ -25,6 +33,15 @@ The Ignite CLI provides a convenient way to interact with your data using standa
    ```
 
 The CLI enables interactive exploration of your transit data, making it easy to try different queries and immediately see results. Let's explore some useful query patterns.
+
+> **Note**: The Ignite CLI provides an SQL interface similar to tools like MySQL or PostgreSQL clients. You can run standard SQL queries, view results in a tabular format, and explore your data interactively. This is particularly useful for ad-hoc analysis and debugging.
+
+> **Checkpoint #1**: Before proceeding, make sure you've:
+>
+> - Started the Ignite CLI tool
+> - Connected to your Ignite node successfully
+> - Entered SQL mode
+> - Run a simple query to verify connectivity
 
 ## Query: Finding Vehicles on a Specific Route
 
@@ -58,6 +75,8 @@ This query uses a Common Table Expression (CTE) rather than a correlated subquer
 2. The main query joins vehicle_positions with this CTE to get only the latest position data
 3. Results are ordered by vehicle_id for readability
 
+> **Note**: A Common Table Expression (CTE) is a temporary named result set that you can reference within a SELECT, INSERT, UPDATE, or DELETE statement. It's defined using the `WITH` clause. CTEs make complex queries more readable by breaking them into logical building blocks.
+
 ### Sample Results
 
 Here's what the output might look like:
@@ -76,6 +95,14 @@ This query pattern is useful for answering questions like:
 - How many vehicles are currently serving route 30?
 - Where exactly is each vehicle on the route right now?
 - What's the current status of vehicles on this route?
+
+### Why Use a CTE Instead of a Subquery?
+
+We use a CTE instead of a correlated subquery for several reasons:
+
+1. **Performance**: CTEs are often more efficient because the database can compute them once and reuse the result
+2. **Readability**: The query logic is more clearly separated and easier to understand
+3. **Maintainability**: Each logical part is named, making the query easier to modify or debug
 
 ## Query: Finding the Nearest Vehicles to a Location
 
@@ -138,6 +165,12 @@ This query is valuable for answering questions like:
 - Are there any vehicles available near a passenger?
 - Which routes have coverage in a specific area?
 
+> **Checkpoint #2**: Try running these first two queries in the Ignite CLI. Make sure you understand:
+>
+> - How the CTEs are being used to find the latest positions
+> - What the distance calculation does and its limitations
+> - How to interpret the results
+
 ## Query: Counting Active Vehicles by Route
 
 For operational monitoring, it's often useful to count how many vehicles are currently active on each route:
@@ -159,6 +192,8 @@ This query:
 - Counts distinct vehicles per route (preventing duplicates if a vehicle reports multiple times)
 - Orders results to show the busiest routes first
 
+> **Note**: `CURRENT_TIMESTAMP` returns the current date and time. The `INTERVAL` keyword creates a time interval, which can be added to or subtracted from date/time values. Together with `WHERE` clause filtering, this allows us to create a 15-minute sliding window of recent data.
+
 Example output:
 
 ```text
@@ -176,6 +211,16 @@ This information helps answer:
 - Which routes have the most vehicles in service?
 - Is there adequate coverage across all routes?
 - How is the fleet currently distributed?
+
+### Understanding GROUP BY and Aggregation
+
+The `GROUP BY` clause divides the data into groups, and the `COUNT` function calculates a value for each group. In this query:
+
+1. `GROUP BY route_id` creates a separate group for each route
+2. `COUNT(DISTINCT vehicle_id)` counts unique vehicles in each group
+3. `ORDER BY vehicle_count DESC` sorts routes with the most vehicles first
+
+This pattern is extremely useful for summarizing data and identifying patterns or outliers.
 
 ## Query: Analyzing Vehicle Statuses
 
@@ -205,6 +250,8 @@ This query:
 3. Groups by the current_status field
 4. Calculates both the absolute count and percentage for each status
 5. Orders results by count in descending order
+
+> **Note**: By calculating the total count first in a CTE, we avoid having to perform that calculation repeatedly for each row. This is more efficient and ensures consistent percentages even if the underlying data changes during query execution.
 
 ```text
 current_status | count | percentage
@@ -271,6 +318,8 @@ ORDER BY vp.vehicle_id;
 
 This query restricts results to vehicles within a rectangular area defined by latitude and longitude boundaries - in this case, covering a portion of downtown San Francisco. The JOIN approach efficiently finds the most recent position for each vehicle by first determining the latest timestamp per vehicle, then joining with the main table.
 
+> **Note**: The `BETWEEN` operator is a shorthand for `>= AND <=` comparisons. It's a convenient way to filter values within a range. Here, we're creating a geographic "bounding box" to find vehicles in a specific area.
+
 Example output:
 
 ```text
@@ -286,6 +335,12 @@ This query is useful for:
 - Monitoring coverage in specific neighborhoods
 - Analyzing vehicle distribution in high-traffic areas
 - Identifying vehicles that might be affected by localized events
+
+> **Checkpoint #3**: Make sure you understand:
+>
+> - How to use the `BETWEEN` operator for range filtering
+> - How the query uses both geographic and time-based filtering
+> - How to create your own bounding box for a different geographic area
 
 ## Query: Finding Delayed Vehicles
 
@@ -308,6 +363,8 @@ ORDER BY minutes_delayed DESC;
 ```
 
 This query uses a CTE to find the latest timestamp for each vehicle, then filters for vehicles that have been stopped for more than 5 minutes.
+
+> **Note**: `TIMESTAMPDIFF` is a function that calculates the difference between two timestamps in a specified unit (in this case, minutes). It's a convenient way to calculate time intervals for time-series analysis.
 
 Example results:
 
@@ -373,6 +430,8 @@ ORDER BY hour_of_day;
 
 This query counts unique vehicles by hour, showing how fleet deployment changes throughout the day. Note that we're using `EXTRACT(HOUR FROM time_stamp)` which is the proper syntax for Ignite 3.
 
+> **Note**: The `EXTRACT` function pulls a specific part (like hour, day, or month) from a date or timestamp. This is useful for time-based analysis across different time periods. Here, we're using it to group data by the hour of the day regardless of the date.
+
 Example results:
 
 ```text
@@ -389,6 +448,12 @@ This analysis helps understand:
 - When are peak service hours?
 - How does vehicle deployment change throughout the day?
 - Are there any unusual patterns in vehicle availability?
+
+> **Checkpoint #4**: Try creating a query that:
+>
+> - Shows the count of vehicles by status for each route
+> - Finds delays at a specific geographic location
+> - Identifies vehicles that have reported positions most frequently
 
 ## Sample Analysis Scenario
 
@@ -463,5 +528,12 @@ You've now learned how to use Apache Ignite's SQL capabilities through the CLI t
 
 In the next module, we'll build on these insights by implementing a continuous monitoring service that watches for specific conditions and triggers alerts when potential issues are detected.
 
+> **Final Module Checkpoint**: Before proceeding, make sure you:
+>
+> - Understand how to query the most recent vehicle positions
+> - Can filter vehicle data by geographic area and time window
+> - Know how to detect potential service disruptions
+> - Can analyze vehicle distribution across routes and time periods
+> - Feel comfortable writing your own SQL queries to answer operational questions
+
 > **Next Steps:** Continue to [Module 7: Adding a Service Monitor](07-continuous-query.md) to implement a monitoring system that detects service disruptions in real-time.
-> 

@@ -20,6 +20,52 @@ By completing this tutorial, you'll have:
 - Practical experience with Ignite's core features
 - Knowledge to build your own distributed data applications
 
+You can complete the modules in a single session or spread them across multiple days. Each module builds incrementally on previous ones, with clear checkpoints to validate your progress.
+
+## What You'll Build
+
+By the end of this tutorial, you'll have created a complete transit monitoring dashboard that looks like this:
+
+```text
+╔══════════════════════════════════════════════════════╗
+║            TRANSIT MONITORING DASHBOARD              ║
+╚══════════════════════════════════════════════════════╝
+Current time: 2023-05-21 14:22:38
+
+SUMMARY VIEW
+────────────────────────────────────────────────────────────────
+ACTIVE VEHICLES BY ROUTE (last 15 minutes)
+• Route 14      : 32 vehicles ↑
+• Route 5       : 30 vehicles =
+• Route 38      : 28 vehicles ↓
+• Route 1       : 26 vehicles =
+• Route 8       : 24 vehicles ↑
+
+VEHICLE STATUS DISTRIBUTION
+• IN_TRANSIT_TO  : 342 vehicles ↑
+• STOPPED_AT     : 198 vehicles ↓
+
+DATA INGESTION STATUS
+• Status: Running
+• Total records fetched: 45,280
+• Total records stored: 45,280
+• Last fetch count: 540
+• Last fetch time: 876ms
+• Running time: 01:23:45
+• Ingestion rate: 9.12 records/second
+
+Views rotate automatically every 10 seconds
+Press ENTER at any time to exit
+```
+
+Your application will connect to real-time transit data feeds, store vehicle positions in a distributed Ignite database, analyze movement patterns, and alert operators to potential service disruptions. The system architecture will include:
+
+- A clustered Ignite database for distributed storage
+- A data ingestion pipeline for real-time updates
+- SQL-based analytics for operational insights
+- A monitoring system for service disruptions
+- A real-time console dashboard for visualization
+
 ## What You'll Learn
 
 Throughout this tutorial, you'll gain hands-on experience with key Apache Ignite 3 features:
@@ -64,6 +110,8 @@ Before starting this tutorial, please ensure you have:
 - **Some SQL experience** for understanding the query examples
 - **Completed the "Use the Java API" How-To guide** (recommended but not required)
 
+> **Checkpoint:** Before proceeding, verify you have all the prerequisites installed by running the version check commands listed above. Each should return version information rather than "command not found" errors.
+
 ## Tutorial Flow
 
 This tutorial is designed as a progressive journey through building a complete application:
@@ -80,5 +128,7 @@ graph LR
 ```
 
 Each module builds on the previous ones, introducing new concepts while reinforcing what you've already learned. The code examples are designed to work together as a cohesive application, but each component also illustrates standalone concepts that can be applied to other projects.
+
+At the end of each module, you'll find clear checkpoints to validate your progress and ensure you're ready to move to the next section. If you encounter any issues, each module includes troubleshooting guidance to help you overcome common challenges.
 
 > **Next Steps:** Continue to [Module 2: Project Setup and Configuration](02-project-setup.md) to set up our project structure and configure our Ignite cluster!
