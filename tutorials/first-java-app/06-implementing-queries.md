@@ -458,7 +458,8 @@ This analysis helps understand:
 - How does vehicle deployment change throughout the day?
 - Are there any unusual patterns in vehicle availability?
 
-> **Checkpoint #4**: Try creating a query that:
+> [!important]
+> **Checkpoint**: Try creating a query that:
 >
 > - Shows the count of vehicles by status for each route
 > - Finds delays at a specific geographic location
