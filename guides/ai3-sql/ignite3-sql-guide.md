@@ -11,7 +11,7 @@ This guide walks you through using Apache Ignite 3's SQL capabilities via the co
 * SQL directory with Chinook Database files downloaded
 
 > [!WARNING]
-> Before starting, make sure you've downloaded the SQL directory from this repository and place it in the same directory where you'll be running the Docker CLI commands. The tutorial expects these SQL files to be available and mounted to the container. Without these files, you won't be able to load the sample data needed for the exercises.
+> Before starting, make sure you've downloaded the `docker-compose.yml` and `sal` directory from this repository and place them in the same directory where you'll be running the Docker CLI commands. The tutorial expects these SQL files to be available and mounted to the container. Without these files, you won't be able to load the sample data needed for the exercises.
 
 ## Setting Up an Apache Ignite 3 Cluster
 
