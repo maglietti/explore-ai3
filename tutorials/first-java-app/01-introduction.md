@@ -110,6 +110,7 @@ Before starting this tutorial, please ensure you have:
 - **Some SQL experience** for understanding the query examples
 - **Completed the "Use the Java API" How-To guide** (recommended but not required)
 
+> [!important]
 > **Checkpoint:** Before proceeding, verify you have all the prerequisites installed by running the version check commands listed above. Each should return version information rather than "command not found" errors.
 
 ## Tutorial Flow
