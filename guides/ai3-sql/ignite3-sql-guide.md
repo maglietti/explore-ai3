@@ -8,10 +8,23 @@ This guide walks you through using Apache Ignite 3's SQL capabilities via the co
 * Basic familiarity with SQL
 * Command-line terminal access
 * 8GB+ of available RAM for running the containers
+* SQL directory with Chinook Database files downloaded
+
+> [!WARNING]
+> Before starting, make sure you've downloaded the SQL directory from this repository and place it in the same directory where you'll be running the Docker CLI commands. The tutorial expects these SQL files to be available and mounted to the container. Without these files, you won't be able to load the sample data needed for the exercises.
 
 ## Setting Up an Apache Ignite 3 Cluster
 
 Before we can start using SQL, we need to set up a multi-node Ignite cluster. We'll use Docker Compose to create a three-node cluster.
+
+```mermaid
+graph TD
+    A[Your Computer] --> B[Docker Network]
+    B --> C[Node 1]
+    B --> D[Node 2]
+    B --> E[Node 3]
+    F[CLI Container] --> B
+```
 
 ### Starting the Cluster
 
@@ -41,6 +54,9 @@ docker compose ps
 
 You should see all three nodes with a "running" status.
 
+> [!TIP]
+> **Checkpoint**: Verify that all three nodes are showing as "running" before continuing. This ensures your cluster is properly set up for the following steps.
+
 ## Connecting to the Cluster Using Ignite CLI
 
 Now we'll connect to our running cluster using Ignite's command-line interface (CLI).
@@ -67,6 +83,9 @@ connect http://node1:10300
 
 You should see a message that you're connected to `http://node1:10300` and possibly a note that the cluster is not initialized.
 
+> [!NOTE]
+> The CLI container runs separately from your cluster nodes but connects to them over the Docker network. This separation follows best practices for management interfaces.
+
 ### Initializing the Cluster
 
 Before we can use the cluster, we need to initialize it:
@@ -74,8 +93,6 @@ Before we can use the cluster, we need to initialize it:
 ```
 cluster init --name=ignite3 --metastorage-group=node1,node2,node3
 ```
-
-You should see the message "Cluster was initialized successfully".
 
 ```bash
 
@@ -105,6 +122,32 @@ The cluster is not initialized. Run cluster init command to initialize it.
 Cluster was initialized successfully
 [node1]> 
 ```
+
+> [!TIP]
+> **Checkpoint**: You should see the "Cluster was initialized successfully" message before proceeding. This confirms that your cluster is properly initialized and ready for database operations.
+
+## Understanding Distributed Database Concepts
+
+Before we dive into creating the schema, let's understand how Apache Ignite distributes data across the cluster:
+
+```mermaid
+graph TD
+    subgraph "Data Distribution Concepts"
+    A[Original Data] --> B[Partitioning]
+    B --> C[Partition 1]
+    B --> D[Partition 2]
+    B --> E[Partition 3]
+    C --> F[Primary Copy on Node 1]
+    C --> G[Backup Copy on Node 2]
+    D --> H[Primary Copy on Node 2]
+    D --> I[Backup Copy on Node 3]
+    E --> J[Primary Copy on Node 3]
+    E --> K[Backup Copy on Node 1]
+    end
+```
+
+> [!IMPORTANT]
+> In Apache Ignite, data is distributed across nodes for scalability and fault tolerance. Distribution zones control how many copies (replicas) of your data exist and on which nodes they're stored. Colocation ensures that related data is kept on the same node to optimize joins.
 
 ## Creating the Chinook Database Schema
 
@@ -139,6 +182,27 @@ These commands create two zones:
 * `Chinook` - Standard zone with 2 replicas for most tables
 * `ChinookReplicated` - Zone with 3 replicas for frequently accessed reference data
 
+> [!NOTE]
+> We use 2 replicas for most tables to balance data safety with storage efficiency. For small, frequently accessed reference tables like `Genre` and `MediaType`, we use 3 replicas (one on each node) to maximize read performance.
+
+### Database Entity Relationship
+
+Here's the entity relationship diagram for our Chinook database:
+
+```mermaid
+erDiagram
+    ARTIST ||--o{ ALBUM : creates
+    ALBUM ||--o{ TRACK : contains
+    GENRE ||--o{ TRACK : categorizes
+    MEDIATYPE ||--o{ TRACK : formats
+    CUSTOMER ||--o{ INVOICE : places
+    INVOICE ||--o{ INVOICELINE : contains
+    TRACK ||--o{ INVOICELINE : purchased-in
+    EMPLOYEE ||--o{ CUSTOMER : supports
+    PLAYLIST ||--o{ PLAYLISTTRACK : contains
+    TRACK ||--o{ PLAYLISTTRACK : appears-in
+```
+
 ### Creating Core Tables
 
 Now let's create the main tables for the Chinook database. We'll start with the Artist and Album tables:
@@ -159,7 +223,8 @@ CREATE TABLE Album (
 ) COLOCATE BY (ArtistId) ZONE Chinook;
 ```
 
-Notice the `COLOCATE BY` clause in the Album table. This ensures that albums by the same artist are stored on the same nodes, which optimizes joins and queries involving both tables.
+> [!NOTE]
+> The `COLOCATE BY` clause in the Album table ensures that albums by the same artist are stored on the same nodes. This optimizes joins between Artist and Album tables by eliminating the need for network transfers during queries.
 
 Next, let's create the Genre and MediaType reference tables:
 
@@ -177,7 +242,8 @@ CREATE TABLE MediaType (
 ) ZONE ChinookReplicated;
 ```
 
-These tables are assigned to the `ChinookReplicated` zone since they contain reference data that doesn't change often but is frequently accessed.
+> [!NOTE]
+> These reference tables are placed in the `ChinookReplicated` zone with 3 replicas because they contain static data that is frequently joined with other tables. Having a copy on each node improves read performance.
 
 Now, let's create the Track table, which references the Album, Genre, and MediaType tables:
 
@@ -196,7 +262,8 @@ CREATE TABLE Track (
 ) COLOCATE BY (AlbumId) ZONE Chinook;
 ```
 
-The Track table is colocated by AlbumId to optimize queries that join tracks with their albums.
+> [!NOTE]
+> Tracks are colocated by AlbumId, not by TrackId, because most queries join tracks with their albums. This colocation optimizes these common join patterns.
 
 Let's also create tables to manage customers, employees, and sales:
 
@@ -260,6 +327,9 @@ CREATE TABLE InvoiceLine (
 ) COLOCATE BY (InvoiceId) ZONE Chinook;
 ```
 
+> [!NOTE]
+> Invoices are colocated by CustomerId and InvoiceLines are colocated by InvoiceId. This creates an efficient chain of locality: Customer → Invoice → InvoiceLine, optimizing queries that analyze customer purchase history.
+
 Finally, let's create the playlist-related tables:
 
 ```sql
@@ -275,6 +345,9 @@ CREATE TABLE PlaylistTrack (
     PRIMARY KEY (PlaylistId, TrackId)
 ) ZONE Chinook;
 ```
+
+> [!CAUTION]
+> Note that PlaylistTrack is not colocated with Track. This is a design decision that prioritizes playlist operations over joining with track details. In a real-world scenario, you might make a different colocation choice depending on your most common query patterns.
 
 ### Verifying Table Creation
 
@@ -315,13 +388,16 @@ sql-cli> SELECT * FROM system.tables WHERE schema = 'PUBLIC';
 ╚════════╧═══════════════╧════╧═════════════╧═══════════════════╧═════════════════╧══════════════════════╝
 ```
 
+> [!TIP]
+> **Checkpoint**: Verify that all tables appear in the system.tables output with their proper zones and colocation settings before proceeding to the next section.
+
 ## Inserting Sample Data
 
 Now that we have our tables set up, let's populate them with sample data.
 
 ### Adding Artists and Albums
 
-Let's start by adding some artists. Exit the `swl-cli>` by typing `exit;`. Then load the current store catalog form the sql data file.
+Let's start by adding some artists. Exit the `sql-cli>` by typing `exit;`. Then load the current store catalog from the sql data file.
 
 ```bash
 sql --file=/opt/ignite/downloads/current_catalog.sql
@@ -404,13 +480,16 @@ Updated 1000 rows.
 Updated 715 rows.
 ```
 
+> [!TIP]
+> **Checkpoint**: Verify that all the data has been loaded successfully by checking that the "Updated X rows" messages match the expected row counts for each file.
+
 ## Querying Data in Ignite SQL
 
 Now that we have data in our tables, let's run some SQL queries to explore the Chinook database.
 
 ### Basic Queries
 
-Let's the `sql-cli>` and start with some simple SELECT queries:
+Let's return to the `sql-cli>` and start with some simple SELECT queries:
 
 ```bash
 sql
@@ -452,6 +531,9 @@ sql-cli> SELECT * FROM Track WHERE AlbumId = 133;
 ╚═════════╧═════════════════════════════════════════╧═════════╧═════════════╧═════════╧════════════════════════════════════════════════════════╧══════════════╧══════════╧═══════════╝
 ```
 
+> [!TIP]
+> **Checkpoint**: Run each of these basic queries and verify that you're getting reasonable results before moving on to more complex queries.
+
 ### Joins
 
 Now let's try some more complex queries with joins:
@@ -465,175 +547,93 @@ SELECT
 FROM 
     Track t
     JOIN Album a ON t.AlbumId = a.AlbumId
-    JOIN Artist ar ON a.ArtistId = ar.ArtistId;
+    JOIN Artist ar ON a.ArtistId = ar.ArtistId
+LIMIT 10;
 ```
 
-This query joins the Track, Album, and Artist tables to show a complete list of tracks with their album and artist information.
+> [!NOTE]
+> This complex query uses multiple CTEs to achieve what would typically be done with the RANK() window function. We first count tracks per album, then determine the maximum track count per artist, and finally join these results to identify albums with the most tracks for each artist.
 
-```sql
--- Get all sales with customer information
-SELECT 
-    i.InvoiceId, 
-    i.InvoiceDate, 
-    c.FirstName || ' ' || c.LastName AS CustomerName,
-    i.Total
-FROM 
-    Invoice i
-    JOIN Customer c ON i.CustomerId = c.CustomerId;
-```
-
-This query joins the Invoice and Customer tables to show invoices with customer names.
-
-### Aggregate Functions
-
-Let's explore some aggregate functions to analyze our data:
-
-```sql
--- Get total sales by country
-SELECT 
-    BillingCountry, 
-    COUNT(InvoiceId) AS InvoiceCount, 
-    SUM(Total) AS TotalSales
-FROM 
-    Invoice
-GROUP BY 
-    BillingCountry
-ORDER BY 
-    TotalSales DESC;
-```
-
-This query groups invoices by country and calculates the total sales.
-
-```sql
--- Get track count and average length by genre
-SELECT 
-    g.Name AS Genre, 
-    COUNT(t.TrackId) AS TrackCount, 
-    AVG(t.Milliseconds / 1000) AS AvgLengthInSeconds
-FROM 
-    Track t
-    JOIN Genre g ON t.GenreId = g.GenreId
-GROUP BY 
-    g.Name
-ORDER BY 
-    TrackCount DESC;
-```
-
-This query calculates the number of tracks and average track length for each genre.
-
-### Using Common Table Expressions (CTEs)
-
-Ignite SQL supports Common Table Expressions (CTEs), which allow you to define temporary result sets:
-
-```sql
--- Find the top-selling track for each genre
-WITH TrackSales AS (
-    SELECT 
-        t.TrackId, 
-        t.Name AS TrackName, 
-        g.Name AS Genre, 
-        SUM(il.Quantity) AS TotalSold
-    FROM 
-        Track t
-        JOIN Genre g ON t.GenreId = g.GenreId
-        JOIN InvoiceLine il ON t.TrackId = il.TrackId
-    GROUP BY 
-        t.TrackId, t.Name, g.Name
-)
-SELECT 
-    ts.Genre,
-    ts.TrackName,
-    ts.TotalSold
-FROM 
-    TrackSales ts
-    JOIN (
-        SELECT 
-            Genre, 
-            MAX(TotalSold) AS MaxSold
-        FROM 
-            TrackSales
-        GROUP BY 
-            Genre
-    ) MaxSales ON ts.Genre = MaxSales.Genre AND ts.TotalSold = MaxSales.MaxSold
-ORDER BY 
-    ts.Genre;
-```
-
-This query uses a CTE to calculate sales for each track and then finds the top-selling track in each genre.
-
-### Working with Window Functions
-
-Note that Apache Ignite 3 (as of version 3.0.0) does not support window functions like `SUM() OVER()` or `RANK() OVER()`. If you attempt to use them, you'll receive an error message such as `cannot translate expression SUM($t1) OVER (ORDER BY $t0 NULLS LAST)`.
-
-For analytics that would typically use window functions, we need to use alternative approaches:
-
-```sql
--- Calculate running total of sales using a self-join instead of window functions
-SELECT 
-    i1.InvoiceDate, 
-    i1.Total,
-    SUM(i2.Total) AS RunningTotal
-FROM 
-    Invoice i1
-    JOIN Invoice i2 ON i2.InvoiceDate <= i1.InvoiceDate
-GROUP BY 
-    i1.InvoiceId, i1.InvoiceDate, i1.Total
-ORDER BY 
-    i1.InvoiceDate;
-```
-
-This query achieves a running total by joining the Invoice table to itself and summing all invoices with a date less than or equal to each invoice's date.
-
-```sql
--- Find the track count for each album and the artist's highest track count
--- (alternative to using RANK window function)
-WITH AlbumTrackCounts AS (
-    SELECT 
-        a.AlbumId,
-        a.Title AS AlbumTitle,
-        ar.ArtistId,
-        ar.Name AS ArtistName,
-        COUNT(t.TrackId) AS TrackCount
-    FROM 
-        Track t
-        JOIN Album a ON t.AlbumId = a.AlbumId
-        JOIN Artist ar ON a.ArtistId = ar.ArtistId
-    GROUP BY 
-        a.AlbumId, a.Title, ar.ArtistId, ar.Name
-),
-ArtistMaxTracks AS (
-    SELECT
-        ArtistId,
-        MAX(TrackCount) AS MaxTrackCount
-    FROM
-        AlbumTrackCounts
-    GROUP BY
-        ArtistId
-)
-SELECT 
-    atc.AlbumTitle, 
-    atc.ArtistName,
-    atc.TrackCount,
-    CASE 
-        WHEN atc.TrackCount = amt.MaxTrackCount THEN 'Most Tracks' 
-        ELSE '' 
-    END AS AlbumRanking
-FROM 
-    AlbumTrackCounts atc
-    JOIN ArtistMaxTracks amt ON atc.ArtistId = amt.ArtistId
-ORDER BY 
-    atc.ArtistName, atc.TrackCount DESC;
-```
-
-This query identifies each artist's albums with the highest track count using CTEs and self-joins instead of window functions.
+> [!TIP]
+> **Checkpoint**: Execute each of these more complex queries to ensure they run successfully. Pay attention to the results to verify they match what you'd expect based on the database structure and relationships.
 
 ## Data Manipulation in Ignite SQL
 
 Let's explore how to modify data using SQL in Ignite.
 
-### Transactions
+### Understanding Distributed Updates
 
-Note that Apache Ignite 3 (as of version 3.0.0) has limited support for transactions using the Java API using a SQL Script.
+When you update data in a distributed database, the changes need to be coordinated across multiple nodes:
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant Node1
+    participant Node2
+    participant Node3
+    
+    Client->>Node1: UPDATE request
+    Node1->>Node1: Update local primary copy
+    Node1->>Node2: Propagate changes to backup copy
+    Node1-->>Client: Confirm update completed
+```
+
+### Inserting New Data
+
+Let's add a new artist and album:
+
+```sql
+-- Insert a new artist
+INSERT INTO Artist (ArtistId, Name) 
+VALUES (276, 'New Discovery Band');
+
+-- Insert a new album for this artist
+INSERT INTO Album (AlbumId, Title, ArtistId, ReleaseYear) 
+VALUES (348, 'First Light', 276, 2023);
+
+-- Verify the insertions
+SELECT * FROM Artist WHERE ArtistId = 276;
+SELECT * FROM Album WHERE AlbumId = 348;
+```
+
+### Updating Existing Data
+
+Now let's update some of our existing data:
+
+```sql
+-- Update the album release year
+UPDATE Album 
+SET ReleaseYear = 2024 
+WHERE AlbumId = 348;
+
+-- Update the artist name
+UPDATE Artist 
+SET Name = 'New Discovery Ensemble' 
+WHERE ArtistId = 276;
+
+-- Verify the updates
+SELECT * FROM Artist WHERE ArtistId = 276;
+SELECT * FROM Album WHERE AlbumId = 348;
+```
+
+> [!NOTE]
+> In a distributed database like Ignite, these updates are automatically propagated to all replicas. The primary copy is updated first, then the changes are sent to the backup copies on other nodes.
+
+### Deleting Data
+
+Finally, let's clean up by deleting the data we added:
+
+```sql
+-- Delete the album
+DELETE FROM Album WHERE AlbumId = 348;
+
+-- Delete the artist
+DELETE FROM Artist WHERE ArtistId = 276;
+
+-- Verify the deletions
+SELECT * FROM Artist WHERE ArtistId = 276;
+SELECT * FROM Album WHERE AlbumId = 348;
+```
 
 ## Advanced SQL Features
 
@@ -654,6 +654,33 @@ SELECT * FROM system.zones;
 SELECT * FROM system.table_columns WHERE TABLE_NAME = 'TRACK';
 ```
 
+> [!NOTE]
+> System views provide important metadata about your cluster configuration. They're essential for monitoring and troubleshooting in production environments.
+
+### Distribution of Data in the Cluster
+
+```mermaid
+graph TD
+    subgraph "Node 1"
+    A1[Primary Data]
+    A2[Backup Data]
+    end
+    
+    subgraph "Node 2"
+    B1[Primary Data]
+    B2[Backup Data]
+    end
+    
+    subgraph "Node 3"
+    C1[Primary Data]
+    C2[Backup Data]
+    end
+    
+    A1 -->|Replicated To| B2
+    B1 -->|Replicated To| C2
+    C1 -->|Replicated To| A2
+```
+
 ### Creating Indexes for Better Performance
 
 Let's add some indexes to improve query performance:
@@ -671,6 +698,9 @@ CREATE INDEX idx_customer_email ON Customer USING HASH (Email);
 -- Check index information
 SELECT * FROM system.indexes;
 ```
+
+> [!IMPORTANT]
+> Indexes improve query performance but come with maintenance costs. Each write operation must also update all indexes. Choose indexes that support your most common query patterns rather than indexing everything.
 
 ## Creating a Dashboard Using SQL
 
@@ -698,6 +728,9 @@ GROUP BY
 ORDER BY 
     YearMonth DESC;
 ```
+
+> [!NOTE]
+> This query formats the year and month into a sortable string (YYYY-MM) while calculating several key business metrics. This is a common pattern for time-series dashboards.
 
 ### Top Selling Genres
 
@@ -756,6 +789,20 @@ LIMIT
     20;
 ```
 
+### Visualizing Query Results
+
+Dashboard applications can connect to Ignite using JDBC drivers and visualize the results of these queries:
+
+```mermaid
+graph TD
+    A[Apache Ignite Cluster] --> B[JDBC Connection]
+    B --> C[Dashboard Application]
+    C --> D[Monthly Sales Chart]
+    C --> E[Genre Revenue Chart]
+    C --> F[Employee Performance Chart]
+    C --> G[Track Length Analysis]
+```
+
 ### Customer Purchase Patterns by Month
 
 ```sql
@@ -781,6 +828,9 @@ GROUP BY
 ORDER BY 
     c.CustomerId, YearMonth;
 ```
+
+> [!TIP]
+> **Checkpoint**: Execute these dashboard queries and examine the output to understand how they could be used in a business intelligence application. Think about how you might visualize each result set.
 
 ## Performance Tuning with Colocated Tables
 
@@ -850,6 +900,9 @@ While full colocation benefits aren't visible in this specific plan (possibly du
 * The query execution begins with individual table scans before joining, allowing each node to work with its local data first.
 * The execution metrics show relatively modest network costs, indicating some colocation benefits.
 
+> [!IMPORTANT]
+> The relatively high network costs in this plan (compared to CPU and IO) suggest that in this specific query, data is being moved between nodes. In a larger production cluster with more data, you would likely see more significant benefits from colocation.
+
 #### Optimizing for Better Colocation
 
 To further leverage colocation benefits:
@@ -870,6 +923,9 @@ When creating tables, we can specify colocation to optimize specific query patte
 * InvoiceLines are colocated by InvoiceId (optimizes Invoice-InvoiceLine joins)
 
 This colocation ensures that related data is stored on the same cluster nodes, minimizing network transfer during joins.
+
+> [!TIP]
+> **Checkpoint**: Try running EXPLAIN PLAN on several of your own queries, especially those involving joins between colocated tables. Look for the presence of `ColocatedHashAggregate` and low network costs to identify queries that benefit from colocation.
 
 ## Cleaning Up
 
@@ -892,199 +948,6 @@ docker compose down
 ```
 
 This will stop and remove the Docker containers for your Ignite cluster.
-
-## Advanced Topics in Ignite SQL
-
-Now that you're familiar with the basics, let's explore some advanced features of Ignite SQL.
-
-### Working with Distributed Joins
-
-Ignite can perform distributed joins when data isn't colocated. For example, if you join tables that aren't colocated, Ignite will distribute the data across the network as needed. While this works, it's less efficient than colocated joins:
-
-```sql
--- This uses a distributed join since PlaylistTrack and Track 
--- doesn't have a colocation relationship
-SELECT 
-    p.Name AS PlaylistName, 
-    t.Name AS TrackName
-FROM 
-    Playlist p
-    JOIN PlaylistTrack pt ON p.PlaylistId = pt.PlaylistId
-    JOIN Track t ON pt.TrackId = t.TrackId
-ORDER BY 
-    p.Name, t.Name;
-```
-
-### Schema Modification
-
-In a production environment **using GridGain 9**, you may need to modify your schema over time. Ignite SQL supports standard DDL operations for this purpose:
-
-> **Note**: Function defaults are not supported in Apache Ignite 3 but are available in GridGain 9
-
-```sql
--- Add a new column to the Customer table
-ALTER TABLE Customer ADD COLUMN DateRegistered DATE;
-
--- Set a default value for new records
-ALTER TABLE Customer ALTER COLUMN DateRegistered SET DEFAULT CURRENT_DATE;
-
--- Update existing records
-UPDATE Customer
-SET DateRegistered = date '2020-01-01'
-WHERE DateRegistered IS NULL;
-
--- Drop a column we don't need
-ALTER TABLE Album DROP COLUMN ReleaseYear;
-```
-
-## Performance Optimization Techniques
-
-Here are some additional techniques to optimize your Ignite SQL queries.
-
-### Creating and Using Indexes
-
-Indexes can significantly improve query performance. Let's create and use some additional indexes:
-
-```sql
--- Create an index on multiple columns
-CREATE INDEX idx_customer_location ON Customer (Country, State, City);
-
--- Create an index on invoice date for report queries
-CREATE INDEX idx_invoice_date ON Invoice (InvoiceDate DESC);
-
--- Query using the indexes
-SELECT * FROM Customer WHERE Country = 'Canada' AND State = 'QC';
-SELECT * FROM Invoice WHERE InvoiceDate >= date '2021-01-01' ORDER BY InvoiceDate DESC;
-```
-
-### Analyzing Query Execution Plans
-
-You can use the EXPLAIN statement to understand how Ignite executes your queries:
-
-```sql
--- Get the execution plan for a complex query
-EXPLAIN PLAN FOR SELECT 
-    c.FirstName || ' ' || c.LastName AS CustomerName,
-    COUNT(DISTINCT i.InvoiceId) AS InvoiceCount,
-    SUM(i.Total) AS TotalSpent
-FROM 
-    Customer c
-    JOIN Invoice i ON c.CustomerId = i.CustomerId
-WHERE 
-    c.Country = 'Germany'
-GROUP BY 
-    c.FirstName, c.LastName
-ORDER BY 
-    TotalSpent DESC;
-```
-
-Analyze the plan for potential optimization opportunities:
-
-1. Look for table scans that could be replaced with index scans
-2. Check if joins are utilizing colocation
-3. Identify parts of the query that might be expensive to compute
-
-### Using Data Partitioning
-
-In Ignite, data is automatically partitioned based on primary key and colocation settings. You can leverage this to optimize queries by ensuring that frequently joined tables are colocated, as we've done in our schema.
-
-For large datasets, consider additional partitioning strategies:
-
-* Temporal partitioning (e.g., partitioning invoices by year)
-* Geographical partitioning (e.g., partitioning customers by region)
-
-## Real-World Examples
-
-Let's look at some real-world examples of how you might use Ignite SQL for a music store application.
-
-### Customer Analytics
-
-```sql
--- Find top-spending customers in the last month
-SELECT 
-    c.CustomerId,
-    c.FirstName || ' ' || c.LastName AS CustomerName,
-    COUNT(i.InvoiceId) AS PurchaseCount,
-    SUM(i.Total) AS TotalSpent
-FROM 
-    Customer c
-    JOIN Invoice i ON c.CustomerId = i.CustomerId
-WHERE 
-    i.InvoiceDate >= CURRENT_DATE - INTERVAL '30' DAY
-GROUP BY 
-    c.CustomerId, c.FirstName, c.LastName
-ORDER BY 
-    TotalSpent DESC
-LIMIT 10;
-
--- Calculate customer lifetime value (CLV)
-SELECT 
-    c.CustomerId,
-    c.FirstName || ' ' || c.LastName AS CustomerName,
-    SUM(i.Total) AS LifetimeValue,
-    MIN(i.InvoiceDate) AS FirstPurchaseDate,
-    MAX(i.InvoiceDate) AS LastPurchaseDate,
-    COUNT(i.InvoiceId) AS TotalPurchases
-FROM 
-    Customer c
-    JOIN Invoice i ON c.CustomerId = i.CustomerId
-GROUP BY 
-    c.CustomerId, c.FirstName, c.LastName
-ORDER BY 
-    LifetimeValue DESC;
-```
-
-### Inventory Management
-
-```sql
--- Track popularity and potential restock needs
-SELECT 
-    t.TrackId,
-    t.Name AS TrackName,
-    al.Title AS AlbumTitle,
-    ar.Name AS ArtistName,
-    SUM(il.Quantity) AS TotalSold,
-    COUNT(DISTINCT i.InvoiceId) AS NumberOfOrders
-FROM 
-    Track t
-    JOIN InvoiceLine il ON t.TrackId = il.TrackId
-    JOIN Invoice i ON il.InvoiceId = i.InvoiceId
-    JOIN Album al ON t.AlbumId = al.AlbumId
-    JOIN Artist ar ON al.ArtistId = ar.ArtistId
-WHERE 
-    i.InvoiceDate >= CURRENT_DATE - INTERVAL '90' DAY
-GROUP BY 
-    t.TrackId, t.Name, al.Title, ar.Name
-ORDER BY 
-    TotalSold DESC;
-```
-
-### Employee Performance Tracking
-
-```sql
--- Track sales by employee over time
-SELECT 
-    e.EmployeeId,
-    e.FirstName || ' ' || e.LastName AS EmployeeName,
-    CAST(EXTRACT(YEAR FROM i.InvoiceDate) AS VARCHAR) || '-' || 
-    CASE 
-        WHEN EXTRACT(MONTH FROM i.InvoiceDate) < 10 
-        THEN '0' || CAST(EXTRACT(MONTH FROM i.InvoiceDate) AS VARCHAR)
-        ELSE CAST(EXTRACT(MONTH FROM i.InvoiceDate) AS VARCHAR)
-    END AS YearMonth,
-    COUNT(DISTINCT i.InvoiceId) AS InvoiceCount,
-    COUNT(DISTINCT c.CustomerId) AS CustomerCount,
-    SUM(i.Total) AS TotalSales
-FROM 
-    Employee e
-    JOIN Customer c ON e.EmployeeId = c.SupportRepId
-    JOIN Invoice i ON c.CustomerId = i.CustomerId
-GROUP BY 
-    e.EmployeeId, e.FirstName, e.LastName, 
-    EXTRACT(YEAR FROM i.InvoiceDate), EXTRACT(MONTH FROM i.InvoiceDate)
-ORDER BY 
-    e.EmployeeId, YearMonth;
-```
 
 ## Best Practices for Ignite SQL
 
@@ -1114,9 +977,29 @@ To get the most out of Ignite SQL, follow these best practices:
 * Consider partitioning strategies for very large tables
 * Use appropriate data types to minimize storage requirements
 
-## Conclusion
+## Summary
 
-In this guide, you've learned how to set up an Apache Ignite 3 cluster and use SQL to create, query, and manage a distributed database. We've covered everything from basic SQL operations to advanced features like distributed joins, transactions, and performance optimization.
+In this guide, you've learned:
+
+1. How to set up and initialize an Apache Ignite 3 cluster using Docker
+2. How to create a distributed database schema with appropriate zones and colocation
+3. How to load and query data using SQL
+4. How to optimize queries with indexes and understand execution plans
+5. How to leverage advanced SQL features like CTEs and alternatives to window functions
+6. How to perform data manipulation operations in a distributed environment
+7. How to design analytical queries for business intelligence dashboards
+
+## What's Next
+
+Now that you've completed this tutorial, here are some suggested next steps:
+
+1. **Expand Your Ignite Knowledge**: Explore other Ignite features such as compute grid, machine learning, and streaming.
+2. **Build a Complete Application**: Create a full-stack application that uses Ignite as the backend database.
+3. **Explore Advanced Distributed Features**: Learn about partition awareness, affinity functions, and more complex topology configurations.
+4. **Performance Tuning**: Experiment with different configuration settings to optimize performance for your specific workload.
+5. **Integrate with Big Data Tools**: Connect Ignite to Hadoop, Spark, or other big data technologies.
+
+## Conclusion
 
 Apache Ignite's SQL capabilities make it a powerful platform for building distributed applications that require high throughput, low latency, and strong consistency. By following the patterns and practices in this guide, you can leverage Ignite SQL to build scalable, resilient systems.
 
