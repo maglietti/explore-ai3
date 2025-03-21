@@ -21,9 +21,11 @@ graph LR
     Clock[Scheduler] --> |Trigger Every N Seconds| Service
 ```
 
-> **Note**: Data ingestion is the process of importing, transferring, loading, and processing data from various sources for immediate use or storage in a database. In our case, we're ingesting real-time transit data from a GTFS feed and storing it in Apache Ignite.
+> [!note]
+> Data ingestion is the process of importing, transferring, loading, and processing data from various sources for immediate use or storage in a database. In our case, we're ingesting real-time transit data from a GTFS feed and storing it in Apache Ignite.
 
-> **Checkpoint #1**: Before continuing, make sure you understand:
+> [!important]
+> **Checkpoint**: Before continuing, make sure you understand:
 >
 > - The key requirements for real-time data ingestion
 > - The flow of data from GTFS to our Ignite database
@@ -351,7 +353,8 @@ public class DataIngestionService {
 }
 ```
 
-> **Note**: The `ScheduledExecutorService` is a Java concurrency utility that lets us execute tasks periodically. We're using it to repeatedly fetch and store data at fixed intervals, which is essential for real-time monitoring. The thread is marked as a daemon thread, meaning it won't prevent the JVM from shutting down when the main thread exits.
+> [!note]
+> The `ScheduledExecutorService` is a Java concurrency utility that lets us execute tasks periodically. We're using it to repeatedly fetch and store data at fixed intervals, which is essential for real-time monitoring. The thread is marked as a daemon thread, meaning it won't prevent the JVM from shutting down when the main thread exits.
 
 ## Key Components of the Data Ingestion Service
 
@@ -430,9 +433,11 @@ private long startTime;
 
 These statistics provide insights into the system's performance and can help identify bottlenecks.
 
-> **Note**: `AtomicLong` is used instead of regular `long` because these variables might be accessed and modified by multiple threads. Atomic variables ensure thread-safe operations without explicit synchronization.
+> [!note]
+> `AtomicLong` is used instead of regular `long` because these variables might be accessed and modified by multiple threads. Atomic variables ensure thread-safe operations without explicit synchronization.
 
-> **Checkpoint #2**: Review the key components of the ingestion service and make sure you understand:
+> [!important]
+> **Checkpoint**: Review the key components of the ingestion service and make sure you understand:
 >
 > - How scheduled execution works
 > - Why batch processing improves performance
@@ -538,7 +543,8 @@ This verifier provides insights into the data we've ingested, including:
 - Route distribution
 - Overall verification of data integrity
 
-> **Note**: The verifier uses SQL queries to inspect the data in our Ignite database. This approach demonstrates the power of Ignite's SQL capabilities and how they can be used for data analysis and verification.
+> [!note]
+> The verifier uses SQL queries to inspect the data in our Ignite database. This approach demonstrates the power of Ignite's SQL capabilities and how they can be used for data analysis and verification.
 
 ## Testing Your Implementation
 
@@ -742,7 +748,8 @@ This test performs a complete cycle of operations:
 6. Verify the final data state
 7. Stop the service and clean up resources
 
-> **Note**: The test includes a visual spinner animation to indicate progress during the waiting period. This is implemented using ANSI escape codes for terminal control and a custom `PrintStream` interceptor to handle concurrent logging output.
+> [!note]
+> The test includes a visual spinner animation to indicate progress during the waiting period. This is implemented using ANSI escape codes for terminal control and a custom `PrintStream` interceptor to handle concurrent logging output.
 
 Execute the test to validate the ingestion service:
 
@@ -750,12 +757,14 @@ Execute the test to validate the ingestion service:
 mvn compile exec:java -Dexec.mainClass="com.example.transit.DataIngestionTest"
 ```
 
-> **Note**: The test runs for 45 seconds without updating the screen most of the time.
+> [!note]
+> The test runs for 45 seconds without updating the screen most of the time.
 > Wait until you see that the test completed or failed before taking action.
 
-> **Expected Output**: When the test completes successfully, you should see statistics about the ingestion process and verification of the data in Ignite. The test will terminate with a "Test completed successfully!" message.
+**Expected Output**: When the test completes successfully, you should see statistics about the ingestion process and verification of the data in Ignite. The test will terminate with a "Test completed successfully!" message.
 
-> **Checkpoint #3**: After running the test, verify:
+> [!important]
+> **Checkpoint**: After running the test, verify:
 >
 > - The schema was created successfully
 > - Data was fetched and stored in the database
@@ -818,7 +827,8 @@ When using transactions with batches, several factors influence the optimal batc
 
 For our transit application, a batch size of 50-200 records typically provides a good balance of performance, resource utilization, and atomicity guarantees.
 
-> **Note**: The optimal batch size varies depending on your specific hardware, network configuration, and data characteristics. It's often determined through experimentation and testing with your specific workload.
+> [!note]
+> The optimal batch size varies depending on your specific hardware, network configuration, and data characteristics. It's often determined through experimentation and testing with your specific workload.
 
 ### Transaction vs. Non-Transactional Batches
 
@@ -831,7 +841,8 @@ While non-transactional batches may offer slightly higher throughput, they lack 
 
 By using transactions with appropriately sized batches, our ingestion service efficiently balances performance with data integrity requirements.
 
-> **Checkpoint #4**: Make sure you understand:
+> [!important]
+> **Checkpoint**: Make sure you understand:
 >
 > - What ACID guarantees are and why they matter
 > - How transactions are used in our ingestion service
@@ -852,6 +863,7 @@ This service forms the backbone of our transit monitoring system, ensuring our d
 
 In the next module, we'll build on this foundation by implementing SQL queries to analyze the transit data and extract valuable insights about vehicle locations, route performance, and potential service disruptions.
 
+> [!important]
 > **Final Module Checkpoint**: Before proceeding to the next module, ensure:
 >
 > - You understand how the data ingestion service works
@@ -860,4 +872,5 @@ In the next module, we'll build on this foundation by implementing SQL queries t
 > - You understand how the service handles failures
 > - You've considered how the service might be optimized for your specific needs
 
+> [!tip]
 > **Next Steps:** Continue to [Module 6: Exploring Transit Data with SQL Queries](06-implementing-queries.md) to learn how to extract insights from your ingested data.

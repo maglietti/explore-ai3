@@ -28,9 +28,11 @@ sequenceDiagram
 
 By isolating the complexities of GTFS-realtime protocol buffer parsing, we make the rest of our application more maintainable and focused on business logic.
 
-> **Note**: Protocol Buffers (protobuf) is a binary serialization format developed by Google. It's more compact and faster to parse than JSON or XML, making it ideal for real-time data feeds. The GTFS-realtime specification uses Protocol Buffers to encode transit data efficiently. Our client will use a pre-built library to handle the protobuf parsing.
+> [!note]
+> Protocol Buffers (protobuf) is a binary serialization format developed by Google. It's more compact and faster to parse than JSON or XML, making it ideal for real-time data feeds. The GTFS-realtime specification uses Protocol Buffers to encode transit data efficiently. Our client will use a pre-built library to handle the protobuf parsing.
 
-> **Checkpoint #1**: Before proceeding, ensure you understand:
+> [!important]
+> **Checkpoint**: Before proceeding, ensure you understand:
 >
 > - The role of the GTFS client in our application architecture
 > - The data flow from the external feed to our application
@@ -154,7 +156,8 @@ public class GTFSFeedClient {
 }
 ```
 
-> **Note**: The `FeedMessage`, `FeedEntity`, and other GTFS-realtime classes come from the `gtfs-realtime-bindings` library we included in our Maven dependencies. These classes are generated from the GTFS-realtime protocol buffer definition and provide a Java API for accessing the protobuf data.
+> [!note]
+> The `FeedMessage`, `FeedEntity`, and other GTFS-realtime classes come from the `gtfs-realtime-bindings` library we included in our Maven dependencies. These classes are generated from the GTFS-realtime protocol buffer definition and provide a Java API for accessing the protobuf data.
 >
 > **Key Sections Explained**:
 >
@@ -177,7 +180,8 @@ Follow these steps to obtain an API token:
 3. Submit the form
 4. Save the API token that's emailed to you
 
-> **Note**: The process of obtaining an API token is similar for most transit data providers. If you want to use data from a different agency, check their developer portal for instructions on getting access.
+> [!note]
+> The process of obtaining an API token is similar for most transit data providers. If you want to use data from a different agency, check their developer portal for instructions on getting access.
 
 ## Configuring Environment Variables
 
@@ -198,11 +202,14 @@ GTFS_AGENCY=SF
 
 Replace `your_token_here` with your actual API token from 511.org and save the `.env` file in the root of your project.
 
-> **Important:** Never commit your `.env` file to version control. Add it to your `.gitignore` file to prevent accidentally exposing your API credentials.
+> [!caution]
+> Never commit your `.env` file to version control. Add it to your `.gitignore` file to prevent accidentally exposing your API credentials.
 
-> **Note**: The dotenv-java library we included in our Maven dependencies allows us to load these environment variables from the `.env` file at runtime. This is a common pattern for managing configuration in applications, especially for sensitive information like API tokens.
+> [!note]
+> The dotenv-java library we included in our Maven dependencies allows us to load these environment variables from the `.env` file at runtime. This is a common pattern for managing configuration in applications, especially for sensitive information like API tokens.
 
-> **Checkpoint #2**: Before proceeding, make sure you have:
+> [!important]
+> **Checkpoint**: Before proceeding, make sure you have:
 >
 > - Created the `GTFSFeedClient.java` file with the provided code
 > - Obtained an API token from 511.org (or another transit data provider)
@@ -359,7 +366,8 @@ public class GTFSConnectionTest {
 }
 ```
 
-> **Note**: This test application demonstrates several Java 8 features like streams, lambda expressions, and method references. The `analyzeVehicleData` method shows how to use streams to calculate statistics on collections of data.
+> [!note]
+> This test application demonstrates several Java 8 features like streams, lambda expressions, and method references. The `analyzeVehicleData` method shows how to use streams to calculate statistics on collections of data.
 >
 > **The test application works as follows**:
 >
@@ -416,8 +424,10 @@ Geographic coverage:
 • Longitude range: -122.5108642578125 to -122.3889923095703
 ```
 
-> **Note**: Your actual output will vary depending on the current state of the transit system. The number of vehicles, their statuses, and their locations will change as vehicles move through the system.
+> [!note]
+> Your actual output will vary depending on the current state of the transit system. The number of vehicles, their statuses, and their locations will change as vehicles move through the system.
 
+> [!important]
 > **Checkpoint #3**: After running the test application, verify that:
 >
 > - The application successfully connects to the GTFS feed
@@ -467,6 +477,7 @@ In this module, we've built and tested a robust GTFS client that forms the data 
 
 In the next module, we'll implement a data ingestion service that uses this client to regularly fetch transit data and store it in our Ignite database, bringing our monitoring system to life.
 
+> [!important]
 > **Final Module Checkpoint**: Before proceeding to the next module, ensure:
 >
 > - The GTFS client connects to the feed and fetches data successfully
@@ -475,4 +486,5 @@ In the next module, we'll implement a data ingestion service that uses this clie
 > - You've updated your `.env` file with the correct API credentials
 > - The test application runs without errors
 
+> [!tip]
 > **Next Steps:** Continue to [Module 5: Building the Data Ingestion Service](05-data-ingestion.md) to implement the component that regularly updates our database with fresh transit data.

@@ -39,9 +39,11 @@ This architecture demonstrates several important design principles:
 4. **Configuration Management**: External configuration keeps credentials secure
 5. **Resource Lifecycle**: Components are properly started and stopped
 
-> **Note**: This architecture follows the Single Responsibility Principle, where each component has one primary function. This makes the system easier to understand, test, and maintain. It also allows components to be developed and tested independently before being integrated into the complete application.
+> [!note]
+> This architecture follows the Single Responsibility Principle, where each component has one primary function. This makes the system easier to understand, test, and maintain. It also allows components to be developed and tested independently before being integrated into the complete application.
 
-> **Checkpoint #1**: Review the architecture diagram and make sure you understand:
+> [!important]
+> **Checkpoint**: Review the architecture diagram and make sure you understand:
 >
 > - The purpose of each component
 > - How data flows through the system
@@ -673,9 +675,11 @@ public class TransitMonitoringApp {
 }
 ```
 
-> **Note**: The `TerminalUtils` class provides terminal manipulation and formatting functions that improve the user experience. The ANSI escape codes allow for colored text and visual effects in terminal environments that support them, which helps make the dashboard more readable and visually appealing.
+> [!note]
+> The `TerminalUtils` class provides terminal manipulation and formatting functions that improve the user experience. The ANSI escape codes allow for colored text and visual effects in terminal environments that support them, which helps make the dashboard more readable and visually appealing.
 
-> **Checkpoint #2**: Take a moment to understand the structure of the main application:
+> [!important]
+> **Checkpoint**: Take a moment to understand the structure of the main application:
 >
 > - How it initializes and connects all the components we've developed
 > - The dashboard refresh cycle and multiple view types
@@ -703,13 +707,15 @@ When the application starts successfully, you'll see:
 - The console dashboard updating every few seconds
 - A prompt to press Enter to exit
 
-> **Note**: The application uses a rotating dashboard that cycles through three views:
+> [!note]
+> The application uses a rotating dashboard that cycles through three views:
 >
 > 1. **Summary View**: Shows active vehicles by route, status distribution, and ingestion statistics
 > 2. **Alerts View**: Displays service alerts and alert statistics
 > 3. **Details View**: Shows system-wide statistics, monitoring thresholds, and connection status
 
-> **Checkpoint #3**: After starting the application, verify that:
+> [!important]
+> **Checkpoint**: After starting the application, verify that:
 >
 > - All components initialize without errors
 > - Data is being ingested (check the ingestion statistics)
@@ -728,6 +734,7 @@ Congratulations! You've now built a complete transit monitoring system using Apa
 
 This system demonstrates the power of Apache Ignite for real-time data processing and monitoring applications. The architecture patterns you've learned can be applied to many other domains beyond transit monitoring, including IoT systems, financial transaction monitoring, logistics tracking, and more.
 
+> [!important]
 > **Final Checkpoint**: As you wrap up the tutorial, ensure you:
 >
 > - Understand how all components work together in the integrated application

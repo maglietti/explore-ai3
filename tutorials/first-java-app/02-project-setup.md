@@ -92,9 +92,11 @@ This Maven configuration includes:
 - **dotenv-java**: Manages configuration variables securely
 - **Maven Shade plugin**: Creates an executable JAR with all dependencies
 
-> **Note**: Maven is a build automation tool that manages project dependencies and builds. The `pom.xml` file defines what libraries your project needs, and Maven automatically downloads them. The `dependencies` section lists required libraries, while the `plugins` section configures build tools.
+> [!note]
+> Maven is a build automation tool that manages project dependencies and builds. The `pom.xml` file defines what libraries your project needs, and Maven automatically downloads them. The `dependencies` section lists required libraries, while the `plugins` section configures build tools.
 
-> **Checkpoint #1**: After creating the `pom.xml` file, run `mvn verify` in your terminal from the project directory. Maven should download all dependencies without errors. If you see "BUILD SUCCESS", your Maven configuration is correct.
+> [!important]
+> **Checkpoint**: After creating the `pom.xml` file, run `mvn verify` in your terminal from the project directory. Maven should download all dependencies without errors. If you see "BUILD SUCCESS", your Maven configuration is correct.
 
 ## Understanding Ignite's Client-Server Architecture
 
@@ -128,7 +130,8 @@ graph TD
     Client --> Node3
 ```
 
-> **Note**: Think of Ignite server nodes as database servers that work together to store data. The client is like a database connector in your application code. The thin client approach means your application only needs a lightweight connection to the cluster, not a full Ignite instance running inside your application.
+> [!note]
+> Think of Ignite server nodes as database servers that work together to store data. The client is like a database connector in your application code. The thin client approach means your application only needs a lightweight connection to the cluster, not a full Ignite instance running inside your application.
 
 ## Setting Up Your Ignite Cluster
 
@@ -181,7 +184,8 @@ configs:
       }
 ```
 
-> **Note**: Docker Compose helps run multiple related containers together. This file defines three Ignite server nodes that will form our cluster. Each node gets 4GB of memory and exposes specific ports for communication. The `configs` section provides shared configuration to all nodes.
+> [!note]
+> Docker Compose helps run multiple related containers together. This file defines three Ignite server nodes that will form our cluster. Each node gets 4GB of memory and exposes specific ports for communication. The `configs` section provides shared configuration to all nodes.
 
 This configuration creates a three-node Ignite cluster running in Docker containers. Each node is configured with:
 
@@ -206,7 +210,8 @@ ignite3-node2-1     "/opt/ignite/bin/ign…"   node2               running      
 ignite3-node3-1     "/opt/ignite/bin/ign…"   node3               running             0.0.0.0:10302->10300/tcp, 0.0.0.0:10802->10800/tcp
 ```
 
-> **Checkpoint #2**: All three containers should be in "running" status after executing the Docker Compose command. If you see all three containers with "running" status, your Ignite cluster is properly started.
+> [!important]
+> **Checkpoint**: All three containers should be in "running" status after executing the Docker Compose command. If you see all three containers with "running" status, your Ignite cluster is properly started.
 
 ### Understanding Ignite Ports
 
@@ -322,7 +327,8 @@ public class IgniteConnection {
 }
 ```
 
-> **Note**: This class uses the "singleton" pattern, which ensures we only create one connection to our Ignite cluster that's shared throughout the application. The `synchronized` keyword ensures thread safety, and the `RetryReadPolicy` automatically handles temporary connection issues.
+> [!note]
+> This class uses the "singleton" pattern, which ensures we only create one connection to our Ignite cluster that's shared throughout the application. The `synchronized` keyword ensures thread safety, and the `RetryReadPolicy` automatically handles temporary connection issues.
 
 This singleton class provides a central point for obtaining and managing the connection to your Ignite cluster. Key features include:
 
@@ -512,7 +518,8 @@ public class IgniteClusterTest {
 }
 ```
 
-> **Note**: This test class demonstrates how to connect to the Ignite cluster and gather basic information about it. The `testConnection` method explores different aspects of the cluster, like how many nodes are running and what configuration is being used.
+> [!note]
+> This test class demonstrates how to connect to the Ignite cluster and gather basic information about it. The `testConnection` method explores different aspects of the cluster, like how many nodes are running and what configuration is being used.
 
 ### Running the Connection Test
 
@@ -579,7 +586,8 @@ transit-monitoring/
 │                       └── IgniteClusterTest.java
 ```
 
-> **Checkpoint #5**: Verify your project structure matches the one above. All Java files should be in the correct package structure, and your `pom.xml` and `docker-compose.yml` files should be in the project root.
+> [!important]
+> **Checkpoint**: Verify your project structure matches the one above. All Java files should be in the correct package structure, and your `pom.xml` and `docker-compose.yml` files should be in the project root.
 
 ## Next Steps
 
@@ -592,6 +600,7 @@ Congratulations! You've now set up a complete development environment for our tr
 
 This foundation gives us everything we need to start building our transit monitoring application. In the next module, we'll explore the GTFS data format and design our schema for storing transit data in Ignite.
 
+> [!important]
 > **Final Module Checkpoint**: Before proceeding to the next module, ensure:
 >
 > - Your Ignite cluster is running (all three containers in "running" state)
@@ -599,4 +608,5 @@ This foundation gives us everything we need to start building our transit monito
 > - You can compile the project without errors
 > - You understand the basic client-server architecture of Ignite 3
 
+> [!tip]
 > **Next Steps:** Continue to [Module 3: Understanding GTFS Data and Creating the Transit Schema](03-understanding-gtfs.md) to learn how to model transit data and create the appropriate schema in Ignite.

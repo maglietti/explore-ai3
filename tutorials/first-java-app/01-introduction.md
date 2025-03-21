@@ -131,4 +131,5 @@ Each module builds on the previous ones, introducing new concepts while reinforc
 
 At the end of each module, you'll find clear checkpoints to validate your progress and ensure you're ready to move to the next section. If you encounter any issues, each module includes troubleshooting guidance to help you overcome common challenges.
 
+> [!tip]
 > **Next Steps:** Continue to [Module 2: Project Setup and Configuration](02-project-setup.md) to set up our project structure and configure our Ignite cluster!

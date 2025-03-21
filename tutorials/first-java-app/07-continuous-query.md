@@ -32,9 +32,11 @@ For our transit monitoring system, we'll implement a **polling-based approach** 
 3. **Control**: Precise control over monitoring frequency
 4. **Resource Management**: Predictable resource usage pattern
 
-> **Note**: A polling-based approach periodically checks the system state by executing queries at fixed intervals. While it may not be as real-time as event-based approaches, it's more straightforward to implement and often sufficient for transit monitoring where conditions change relatively slowly (on the order of seconds or minutes rather than milliseconds).
+> [!note]
+> A polling-based approach periodically checks the system state by executing queries at fixed intervals. While it may not be as real-time as event-based approaches, it's more straightforward to implement and often sufficient for transit monitoring where conditions change relatively slowly (on the order of seconds or minutes rather than milliseconds).
 
-> **Checkpoint #1**: Before proceeding, make sure you understand:
+> [!important]
+> **Checkpoint**: Before proceeding, make sure you understand:
 >
 > - The difference between event-based, polling-based, and push notification approaches
 > - Why we're choosing a polling-based approach for our transit monitoring
@@ -528,9 +530,11 @@ public class ServiceMonitor {
 }
 ```
 
-> **Note**: This service monitors four different transit conditions: delayed vehicles, vehicle bunching (multiple vehicles too close together), low route coverage, and offline vehicles. Each condition is checked using a separate SQL query executed on a regular schedule. This modular approach makes it easy to add or remove monitoring conditions as needed.
+> [!note]
+> This service monitors four different transit conditions: delayed vehicles, vehicle bunching (multiple vehicles too close together), low route coverage, and offline vehicles. Each condition is checked using a separate SQL query executed on a regular schedule. This modular approach makes it easy to add or remove monitoring conditions as needed.
 
-> **Checkpoint #2**: Take some time to review the `ServiceMonitor` class and understand:
+> [!important]
+> **Checkpoint**: Take some time to review the `ServiceMonitor` class and understand:
 >
 > - How it schedules multiple monitoring tasks
 > - The four different types of alerts it detects
@@ -609,7 +613,8 @@ WHERE SQRT(POWER(a.latitude - b.latitude, 2) + POWER(a.longitude - b.longitude, 
 ORDER BY distance_km
 ```
 
-> **Note**: The distance calculation multiplies by 111 to convert the degree-based distance to approximate kilometers (there are roughly 111 kilometers per degree of latitude or longitude at the equator). While not perfectly accurate for all locations, this approximation is sufficient for our monitoring purposes.
+> [!note]
+> The distance calculation multiplies by 111 to convert the degree-based distance to approximate kilometers (there are roughly 111 kilometers per degree of latitude or longitude at the equator). While not perfectly accurate for all locations, this approximation is sufficient for our monitoring purposes.
 
 ### Low Route Coverage
 
@@ -671,7 +676,8 @@ WHERE v.route_id IN (SELECT route_id FROM active_routes)  -- Only check routes w
 ORDER BY offline_minutes DESC
 ```
 
-> **Checkpoint #3**: Make sure you understand:
+> [!important]
+> **Checkpoint**: Make sure you understand:
 >
 > - The purpose of each monitoring condition
 > - How each SQL query works to detect the condition
@@ -755,7 +761,8 @@ Execute the test to validate the service monitor:
 mvn compile exec:java -Dexec.mainClass="com.example.transit.ServiceMonitorTest"
 ```
 
-> **Note**: This test will run until you press Enter, giving the monitor time to detect any issues in your transit data. The longer you let it run, the more alerts it may detect, depending on the state of your data.
+> [!note]
+> This test will run until you press Enter, giving the monitor time to detect any issues in your transit data. The longer you let it run, the more alerts it may detect, depending on the state of your data.
 
 **Expected Output**: The exact alerts detected will depend on your data, but you should see something like:
 
@@ -797,7 +804,8 @@ Sample alerts:
 Test completed successfully!
 ```
 
-> **Checkpoint #4**: After running the test, verify that:
+> [!important]
+> **Checkpoint**: After running the test, verify that:
 >
 > - The monitor successfully connected to the database
 > - At least some alerts were detected (you may need to run the test for longer to see multiple alerts)
@@ -855,7 +863,8 @@ This structure makes it easy to:
 - Locate problems geographically
 - Group related alerts
 
-> **Note**: In a production system, you would likely extend this basic alert management to include:
+> [!note]
+> In a production system, you would likely extend this basic alert management to include:
 >
 > - Persistence to a database for historical analysis
 > - Alert escalation for unresolved issues
@@ -911,6 +920,7 @@ This monitoring system transforms our transit application from a passive data co
 
 The SQL-based approach leverages Ignite's distributed query capabilities to efficiently process large volumes of transit data and detect specific patterns that might indicate service issues.
 
+> [!important]
 > **Final Module Checkpoint**: Before proceeding to the next module, ensure:
 >
 > - You understand the polling-based monitoring approach
@@ -921,4 +931,5 @@ The SQL-based approach leverages Ignite's distributed query capabilities to effi
 
 In the next module, we'll bring all the components together to create the complete transit monitoring application, including a simple dashboard to visualize the system status.
 
+> [!tip]
 > **Next Steps:** Continue to [Module 8: Putting It All Together](08-putting-together.md) to create the main application that combines all these components into a complete system.

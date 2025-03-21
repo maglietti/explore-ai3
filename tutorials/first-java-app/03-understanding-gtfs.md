@@ -41,7 +41,8 @@ graph LR
 
 For our transit monitoring system, we'll focus on the **[Vehicle Positions](https://gtfs.org/documentation/realtime/reference/#message-vehicleposition)** component of GTFS Realtime. This gives us a continuous stream of data points showing where each transit vehicle is located, what route it's serving, and its current status (in transit, stopped at a location, etc.).
 
-> **Note**: GTFS-realtime data is typically delivered as Protocol Buffer messages, a binary serialization format developed by Google. While we won't delve into the details of Protocol Buffers in this tutorial, our client library will handle the parsing for us.
+> [!note]
+> GTFS-realtime data is typically delivered as Protocol Buffer messages, a binary serialization format developed by Google. While we won't delve into the details of Protocol Buffers in this tutorial, our client library will handle the parsing for us.
 
 ## Analyzing the Data: What's in a Vehicle Position?
 
@@ -192,7 +193,8 @@ public class VehiclePosition implements Serializable {
 
 This model is our translator between the GTFS protocol buffer format and a straightforward Java object that's easy to work with in our application. Each instance represents a snapshot of a vehicle at a specific moment in time.
 
-> **Note**: The `Serializable` interface is implemented to ensure our class can be easily serialized and deserialized across the network or to disk if needed. The `serialVersionUID` helps maintain compatibility if the class definition changes over time.
+> [!note]
+> The `Serializable` interface is implemented to ensure our class can be easily serialized and deserialized across the network or to disk if needed. The `serialVersionUID` helps maintain compatibility if the class definition changes over time.
 
 > **Checkpoint #2**: After creating the `VehiclePosition` class, compile it to ensure there are no syntax errors:
 >
@@ -322,7 +324,8 @@ This schema creation code:
 4. Handles errors with detailed reporting
 5. Returns a success/failure indicator
 
-> **Note**: The `.ifNotExists()` method ensures the table creation statement won't fail if the table already exists. This makes our schema setup idempotent, meaning it can be run multiple times without causing errors or duplicate tables.
+> [!note]
+> The `.ifNotExists()` method ensures the table creation statement won't fail if the table already exists. This makes our schema setup idempotent, meaning it can be run multiple times without causing errors or duplicate tables.
 
 ### Schema Design Decisions Explained
 
@@ -356,7 +359,8 @@ classDiagram
 3. **Table Name**:
    We chose a clear, descriptive name (`vehicle_positions`) that follows SQL naming conventions.
 
-> **Note**: We didn't create separate secondary indexes in this schema since our query patterns will primarily use the composite primary key. In a production system, you might add additional indexes for specific query patterns, such as a spatial index for geographic queries or an index on `route_id` for filtering by route.
+> [!note]
+> We didn't create separate secondary indexes in this schema since our query patterns will primarily use the composite primary key. In a production system, you might add additional indexes for specific query patterns, such as a spatial index for geographic queries or an index on `route_id` for filtering by route.
 
 > **Checkpoint #3**: Review the schema design and ensure you understand:
 >
@@ -530,7 +534,8 @@ This test class performs a complete cycle of operations:
 6. Verifies the deletion was successful
 7. Cleans up resources
 
-> **Note**: Notice the conversion between Java's `Instant` and SQL's `TIMESTAMP` (represented as `LocalDateTime` in Java). This conversion is necessary because Ignite's JDBC driver expects temporal data in `LocalDateTime` format rather than as epoch milliseconds.
+> [!note]
+> Notice the conversion between Java's `Instant` and SQL's `TIMESTAMP` (represented as `LocalDateTime` in Java). This conversion is necessary because Ignite's JDBC driver expects temporal data in `LocalDateTime` format rather than as epoch milliseconds.
 
 ## The Architecture Behind the Schema
 
@@ -584,7 +589,8 @@ This colocation brings several significant benefits:
 
 For example, when tracking a specific vehicle's path over time, Ignite can execute the query entirely on the node containing that vehicle's data, avoiding costly network transfers between nodes.
 
-> **Note**: The first part of a composite primary key (in our case, `vehicle_id`) is used as the affinity key by default in Ignite. This means data with the same vehicle ID will be stored on the same node, optimizing queries that search for a specific vehicle's history.
+> [!note]
+> The first part of a composite primary key (in our case, `vehicle_id`) is used as the affinity key by default in Ignite. This means data with the same vehicle ID will be stored on the same node, optimizing queries that search for a specific vehicle's history.
 
 ## Executing the Schema Test
 
@@ -627,6 +633,7 @@ Congratulations! You've now:
 
 This schema provides the foundation for our transit monitoring system. In the next module, we'll build a client to fetch real-time GTFS data from a transit agency and feed it into our Ignite database.
 
+> [!important]
 > **Final Module Checkpoint**: Before proceeding to the next module, ensure:
 >
 > - The `VehiclePosition` class compiles without errors
@@ -635,4 +642,5 @@ This schema provides the foundation for our transit monitoring system. In the ne
 > - You can explain how the composite primary key helps with data organization and query performance
 > - You understand how Ignite's data colocation feature improves query performance
 
+> [!tip]
 > **Next Steps:** Continue to [Module 4: Building the GTFS Client](04-gtfs-client.md) to implement the component that will connect to real-time transit data feeds.

@@ -34,9 +34,11 @@ The Ignite CLI provides a convenient way to interact with your data using standa
 
 The CLI enables interactive exploration of your transit data, making it easy to try different queries and immediately see results. Let's explore some useful query patterns.
 
-> **Note**: The Ignite CLI provides an SQL interface similar to tools like MySQL or PostgreSQL clients. You can run standard SQL queries, view results in a tabular format, and explore your data interactively. This is particularly useful for ad-hoc analysis and debugging.
+> [!note]
+> The Ignite CLI provides an SQL interface similar to tools like MySQL or PostgreSQL clients. You can run standard SQL queries, view results in a tabular format, and explore your data interactively. This is particularly useful for ad-hoc analysis and debugging.
 
-> **Checkpoint #1**: Before proceeding, make sure you've:
+> [!important]
+> **Checkpoint**: Before proceeding, make sure you've:
 >
 > - Started the Ignite CLI tool
 > - Connected to your Ignite node successfully
@@ -75,7 +77,8 @@ This query uses a Common Table Expression (CTE) rather than a correlated subquer
 2. The main query joins vehicle_positions with this CTE to get only the latest position data
 3. Results are ordered by vehicle_id for readability
 
-> **Note**: A Common Table Expression (CTE) is a temporary named result set that you can reference within a SELECT, INSERT, UPDATE, or DELETE statement. It's defined using the `WITH` clause. CTEs make complex queries more readable by breaking them into logical building blocks.
+> [!note]
+> A Common Table Expression (CTE) is a temporary named result set that you can reference within a SELECT, INSERT, UPDATE, or DELETE statement. It's defined using the `WITH` clause. CTEs make complex queries more readable by breaking them into logical building blocks.
 
 ### Sample Results
 
@@ -165,7 +168,8 @@ This query is valuable for answering questions like:
 - Are there any vehicles available near a passenger?
 - Which routes have coverage in a specific area?
 
-> **Checkpoint #2**: Try running these first two queries in the Ignite CLI. Make sure you understand:
+> [!important]
+> **Checkpoint**: Try running these first two queries in the Ignite CLI. Make sure you understand:
 >
 > - How the CTEs are being used to find the latest positions
 > - What the distance calculation does and its limitations
@@ -192,7 +196,8 @@ This query:
 - Counts distinct vehicles per route (preventing duplicates if a vehicle reports multiple times)
 - Orders results to show the busiest routes first
 
-> **Note**: `CURRENT_TIMESTAMP` returns the current date and time. The `INTERVAL` keyword creates a time interval, which can be added to or subtracted from date/time values. Together with `WHERE` clause filtering, this allows us to create a 15-minute sliding window of recent data.
+> [!note]
+> `CURRENT_TIMESTAMP` returns the current date and time. The `INTERVAL` keyword creates a time interval, which can be added to or subtracted from date/time values. Together with `WHERE` clause filtering, this allows us to create a 15-minute sliding window of recent data.
 
 Example output:
 
@@ -251,7 +256,8 @@ This query:
 4. Calculates both the absolute count and percentage for each status
 5. Orders results by count in descending order
 
-> **Note**: By calculating the total count first in a CTE, we avoid having to perform that calculation repeatedly for each row. This is more efficient and ensures consistent percentages even if the underlying data changes during query execution.
+> [!note]
+> By calculating the total count first in a CTE, we avoid having to perform that calculation repeatedly for each row. This is more efficient and ensures consistent percentages even if the underlying data changes during query execution.
 
 ```text
 current_status | count | percentage
@@ -318,7 +324,8 @@ ORDER BY vp.vehicle_id;
 
 This query restricts results to vehicles within a rectangular area defined by latitude and longitude boundaries - in this case, covering a portion of downtown San Francisco. The JOIN approach efficiently finds the most recent position for each vehicle by first determining the latest timestamp per vehicle, then joining with the main table.
 
-> **Note**: The `BETWEEN` operator is a shorthand for `>= AND <=` comparisons. It's a convenient way to filter values within a range. Here, we're creating a geographic "bounding box" to find vehicles in a specific area.
+> [!note]
+> The `BETWEEN` operator is a shorthand for `>= AND <=` comparisons. It's a convenient way to filter values within a range. Here, we're creating a geographic "bounding box" to find vehicles in a specific area.
 
 Example output:
 
@@ -336,7 +343,8 @@ This query is useful for:
 - Analyzing vehicle distribution in high-traffic areas
 - Identifying vehicles that might be affected by localized events
 
-> **Checkpoint #3**: Make sure you understand:
+> [!important]
+> **Checkpoint**: Make sure you understand:
 >
 > - How to use the `BETWEEN` operator for range filtering
 > - How the query uses both geographic and time-based filtering
@@ -364,7 +372,8 @@ ORDER BY minutes_delayed DESC;
 
 This query uses a CTE to find the latest timestamp for each vehicle, then filters for vehicles that have been stopped for more than 5 minutes.
 
-> **Note**: `TIMESTAMPDIFF` is a function that calculates the difference between two timestamps in a specified unit (in this case, minutes). It's a convenient way to calculate time intervals for time-series analysis.
+> [!note]
+> `TIMESTAMPDIFF` is a function that calculates the difference between two timestamps in a specified unit (in this case, minutes). It's a convenient way to calculate time intervals for time-series analysis.
 
 Example results:
 
@@ -430,7 +439,8 @@ ORDER BY hour_of_day;
 
 This query counts unique vehicles by hour, showing how fleet deployment changes throughout the day. Note that we're using `EXTRACT(HOUR FROM time_stamp)` which is the proper syntax for Ignite 3.
 
-> **Note**: The `EXTRACT` function pulls a specific part (like hour, day, or month) from a date or timestamp. This is useful for time-based analysis across different time periods. Here, we're using it to group data by the hour of the day regardless of the date.
+> [!note]
+> The `EXTRACT` function pulls a specific part (like hour, day, or month) from a date or timestamp. This is useful for time-based analysis across different time periods. Here, we're using it to group data by the hour of the day regardless of the date.
 
 Example results:
 
@@ -528,6 +538,7 @@ You've now learned how to use Apache Ignite's SQL capabilities through the CLI t
 
 In the next module, we'll build on these insights by implementing a continuous monitoring service that watches for specific conditions and triggers alerts when potential issues are detected.
 
+> [!important]
 > **Final Module Checkpoint**: Before proceeding, make sure you:
 >
 > - Understand how to query the most recent vehicle positions
@@ -536,4 +547,5 @@ In the next module, we'll build on these insights by implementing a continuous m
 > - Can analyze vehicle distribution across routes and time periods
 > - Feel comfortable writing your own SQL queries to answer operational questions
 
+> [!tip]
 > **Next Steps:** Continue to [Module 7: Adding a Service Monitor](07-continuous-query.md) to implement a monitoring system that detects service disruptions in real-time.
