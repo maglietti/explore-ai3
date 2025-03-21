@@ -62,7 +62,8 @@ Before designing our schema, let's examine what information is available in a GT
 
 For our application, we'll focus on the most essential fields: vehicle ID, route ID, position coordinates, timestamp, and status. This gives us the core information needed for monitoring while keeping our schema clean and focused.
 
-> **Checkpoint #1**: Before continuing, make sure you understand:
+> [!important]
+> **Checkpoint**: Before continuing, make sure you understand:
 >
 > - The difference between GTFS Static and GTFS Realtime
 > - What data is available in a vehicle position record
@@ -196,7 +197,8 @@ This model is our translator between the GTFS protocol buffer format and a strai
 > [!note]
 > The `Serializable` interface is implemented to ensure our class can be easily serialized and deserialized across the network or to disk if needed. The `serialVersionUID` helps maintain compatibility if the class definition changes over time.
 
-> **Checkpoint #2**: After creating the `VehiclePosition` class, compile it to ensure there are no syntax errors:
+> [!important]
+> **Checkpoint**: After creating the `VehiclePosition` class, compile it to ensure there are no syntax errors:
 >
 > ```bash
 > mvn compile
@@ -362,7 +364,8 @@ classDiagram
 > [!note]
 > We didn't create separate secondary indexes in this schema since our query patterns will primarily use the composite primary key. In a production system, you might add additional indexes for specific query patterns, such as a spatial index for geographic queries or an index on `route_id` for filtering by route.
 
-> **Checkpoint #3**: Review the schema design and ensure you understand:
+> [!important]
+> **Checkpoint**: Review the schema design and ensure you understand:
 >
 > - Why we're using a composite primary key
 > - The purpose of each column and its data type
@@ -604,7 +607,8 @@ When executed successfully, you'll see output confirming the schema creation, re
 
 > **Expected Output**: You should see successful connection, table creation, record insertion, querying, and deletion messages. The test should complete with "Test completed, resources cleaned up."
 
-> **Checkpoint #4**: After running the schema test:
+> [!important]
+> **Checkpoint**: After running the schema test:
 >
 > - Verify all operations (create, insert, query, delete) completed successfully
 > - Check that no exceptions were thrown during the test
