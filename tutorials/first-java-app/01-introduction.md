@@ -100,7 +100,6 @@ Before starting this tutorial, please ensure you have:
 
 - **Java 11 or later** installed and properly configured
   - Verify with `java --version` in your terminal
-  - JDK 17 is recommended for best compatibility
 - **Maven 3.6+** for dependency management
   - Verify with `mvn --version`
 - **Docker 20.10+** and Docker Compose for running the Ignite 3 cluster

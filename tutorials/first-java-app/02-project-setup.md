@@ -4,7 +4,61 @@ In this module, you'll establish the foundation for your transit monitoring appl
 
 ## Creating the Project Structure
 
-You can either create the project structure manually as you progress through the tutorial, or clone the starter [repository](https://github.com/maglietti/explore-ai3). We'll walk through the manual setup process to understand each component.
+## Development Environment Options
+
+While the tutorial uses Maven and command-line operations, you can adapt the approach to your preferred development environment:
+
+### IntelliJ IDEA Setup
+
+1. Open IntelliJ IDEA
+2. Select **File > New > Project**
+3. Choose **Maven** as the project type
+4. Enter the group id as `com.example`, artifact id as `transit-monitoring`
+5. Click **Finish**
+6. Replace the contents of the generated `pom.xml` with our configuration
+7. Create the package structure by right-clicking on `src/main/java` and selecting **New > Package** and entering `com.example.transit`
+8. Create the Java classes in this package
+9. Create the `docker-compose.yml` file in the project root
+
+### Visual Studio Code Setup
+
+1. Create a new folder for your project
+2. Open the folder in VS Code
+3. Create the `pom.xml` file with our configuration
+4. Create a `src/main/java/com/example/transit` directory structure
+5. Add the Java files to this directory
+6. Create the `docker-compose.yml` file in the project root
+7. Use the Java extension to run the application
+
+### Using Other Editors
+
+If you prefer another editor:
+
+1. Create the project structure manually
+2. Use the editor's Maven integration or command-line Maven to build
+3. Ensure your editor's Java extension can resolve the dependencies in the `pom.xml`
+
+## Directory Structure
+
+By the end of this module, your project structure should look like this:
+
+```shell
+transit-monitoring/
+├── pom.xml
+├── docker-compose.yml
+├── src/
+│   └── main/
+│       └── java/
+│           └── com/
+│               └── example/
+│                   └── transit/
+│                       ├── IgniteConnection.java
+│                       └── IgniteClusterTest.java
+│                       └── ...
+```
+
+> [!tip]
+> You can either create the project structure manually as you progress through the tutorial, or clone the starter [repository](https://github.com/maglietti/transit-monitor). We'll walk through the manual setup process to understand each component.
 
 ### Maven Configuration
 
@@ -91,9 +145,6 @@ This Maven configuration includes:
 - **Logback**: Implements structured logging for application events
 - **dotenv-java**: Manages configuration variables securely
 - **Maven Shade plugin**: Creates an executable JAR with all dependencies
-
-> [!note]
-> Maven is a build automation tool that manages project dependencies and builds. The `pom.xml` file defines what libraries your project needs, and Maven automatically downloads them. The `dependencies` section lists required libraries, while the `plugins` section configures build tools.
 
 > [!important]
 > **Checkpoint**: After creating the `pom.xml` file, run `mvn verify` in your terminal from the project directory. Maven should download all dependencies without errors. If you see "BUILD SUCCESS", your Maven configuration is correct.
@@ -537,61 +588,6 @@ If everything is set up correctly, you should see output confirming the connecti
 
 > [!important]
 > **Checkpoint #4**: After running the connection test, you should see a successful connection message and information about all three nodes in your cluster. If you see "CONNECTION SUCCESSFUL!" near the end of the output, your connection is working properly.
-
-## Development Environment Options
-
-While the tutorial uses Maven and command-line operations, you can adapt the approach to your preferred development environment:
-
-### IntelliJ IDEA Setup
-
-1. Open IntelliJ IDEA
-2. Select **File > New > Project**
-3. Choose **Maven** as the project type
-4. Enter the group id as `com.example`, artifact id as `transit-monitoring`
-5. Click **Finish**
-6. Replace the contents of the generated `pom.xml` with our configuration
-7. Create the package structure by right-clicking on `src/main/java` and selecting **New > Package** and entering `com.example.transit`
-8. Create the Java classes in this package
-9. Create the `docker-compose.yml` file in the project root
-
-### Visual Studio Code Setup
-
-1. Create a new folder for your project
-2. Open the folder in VS Code
-3. Create the `pom.xml` file with our configuration
-4. Create a `src/main/java/com/example/transit` directory structure
-5. Add the Java files to this directory
-6. Create the `docker-compose.yml` file in the project root
-7. Use the Java extension to run the application
-
-### Using Other Editors
-
-If you prefer another editor:
-
-1. Create the project structure manually
-2. Use the editor's Maven integration or command-line Maven to build
-3. Ensure your editor's Java extension can resolve the dependencies in the `pom.xml`
-
-## Directory Structure
-
-By the end of this module, your project structure should look like this:
-
-```shell
-transit-monitoring/
-├── pom.xml
-├── docker-compose.yml
-├── src/
-│   └── main/
-│       └── java/
-│           └── com/
-│               └── example/
-│                   └── transit/
-│                       ├── IgniteConnection.java
-│                       └── IgniteClusterTest.java
-```
-
-> [!important]
-> **Checkpoint**: Verify your project structure matches the one above. All Java files should be in the correct package structure, and your `pom.xml` and `docker-compose.yml` files should be in the project root.
 
 ## Next Steps
 

@@ -21,14 +21,14 @@ The Ignite CLI provides a convenient way to interact with your data using standa
 
 2. Connect to your node:
 
-   ```text
+   ```bash
    connect http://localhost:10300
    ```
 
 3. Type `sql` and hit enter. You can now run SQL queries directly:
 
-   ```text
-   sql-cli> SELECT COUNT(*) FROM vehicle_positions;
+   ```sql
+   SELECT COUNT(*) FROM vehicle_positions;
    ```
 
 The CLI enables interactive exploration of your transit data, making it easy to try different queries and immediately see results. Let's explore some useful query patterns.

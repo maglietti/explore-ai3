@@ -163,7 +163,7 @@ sql
 
 Your prompt should change to `sql-cli>` indicating you're now in SQL mode.
 
-```bash
+```text
 [node1]> sql
 sql-cli> 
 ```
