@@ -675,6 +675,8 @@ public class TransitMonitoringApp {
 }
 ```
 
+And it's supporting `TerminalUtils` utility class.
+
 > [!note]
 > The `TerminalUtils` class provides terminal manipulation and formatting functions that improve the user experience. The ANSI escape codes allow for colored text and visual effects in terminal environments that support them, which helps make the dashboard more readable and visually appealing.
 
