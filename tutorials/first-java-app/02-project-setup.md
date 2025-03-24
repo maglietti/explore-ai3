@@ -482,6 +482,7 @@ package com.example.transit.examples;
 
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
+import com.example.transit.service.IgniteConnectionService;
 import org.apache.ignite.client.IgniteClient;
 import org.apache.ignite.client.RetryLimitPolicy;
 import org.apache.ignite.network.ClusterNode;
@@ -494,7 +495,7 @@ import java.util.stream.Collectors;
  * Test class for verifying connection to an Ignite 3 cluster.
  * This class demonstrates how to connect to a cluster and retrieve information.
  */
-public class IgniteClusterTest {
+public class IgniteClusterExample {
 
     public static void main(String[] args) {
         // Configure logging to be quiet before any other operations
@@ -506,7 +507,7 @@ public class IgniteClusterTest {
         try {
             // Get client connection
             System.out.println("--- Connecting to Ignite cluster...");
-            client = IgniteConnection.getClient();
+            client = IgniteConnectionService.getClient();
 
             // Test the connection by retrieving cluster nodes
             System.out.println("Testing connection by retrieving cluster nodes...");
@@ -521,7 +522,7 @@ public class IgniteClusterTest {
             // Always properly disconnect from the cluster
             if (client != null) {
                 System.out.println("--- Disconnecting from Ignite cluster...");
-                IgniteConnection.close();
+                IgniteConnectionService.close();
             }
         }
     }
@@ -659,7 +660,7 @@ public class IgniteClusterTest {
 To run the test:
 
 1. Compile your project: `mvn compile`
-2. Execute the test class: `mvn exec:java -Dexec.mainClass="com.example.transit.IgniteClusterTest"`
+2. Execute the test class: `mvn exec:java -Dexec.mainClass="com.example.transit.examples.IgniteClusterExample"`
 
 If everything is set up correctly, you should see output confirming the connection to your Ignite cluster, along with details about the connected nodes, client configuration, and available resources.
 
