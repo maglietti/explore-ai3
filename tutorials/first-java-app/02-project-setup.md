@@ -492,7 +492,6 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 /**
- * Test class for verifying connection to an Ignite 3 cluster.
  * This class demonstrates how to connect to a cluster and retrieve information.
  */
 public class IgniteClusterExample {
@@ -653,21 +652,21 @@ public class IgniteClusterExample {
 ```
 
 > [!note]
-> This test class demonstrates how to connect to the Ignite cluster and gather basic information about it. The `testConnection` method explores different aspects of the cluster, like how many nodes are running and what configuration is being used.
+> This example class demonstrates how to connect to the Ignite cluster and gather basic information about it. The `testConnection` method explores different aspects of the cluster, like how many nodes are running and what configuration is being used.
 
-### Running the Connection Test
+### Running the Connection Example
 
-To run the test:
+To run the example:
 
 1. Compile your project: `mvn compile`
-2. Execute the test class: `mvn exec:java -Dexec.mainClass="com.example.transit.examples.IgniteClusterExample"`
+2. Execute the example class: `mvn exec:java -Dexec.mainClass="com.example.transit.examples.IgniteClusterExample"`
 
 If everything is set up correctly, you should see output confirming the connection to your Ignite cluster, along with details about the connected nodes, client configuration, and available resources.
 
 **Expected Output**: You should see a successful connection message and information about the three nodes in your cluster. The output should confirm that you're connected to at least one of the nodes.
 
 > [!important]
-> **Checkpoint #4**: After running the connection test, you should see a successful connection message and information about all three nodes in your cluster. If you see "CONNECTION SUCCESSFUL!" near the end of the output, your connection is working properly.
+> **Checkpoint #4**: After running the connection example, you should see a successful connection message and information about all three nodes in your cluster. If you see "CONNECTION SUCCESSFUL!" near the end of the output, your connection is working properly.
 
 ## Next Steps
 
@@ -676,7 +675,7 @@ Congratulations! You've now set up a complete development environment for our tr
 - A three-node Ignite cluster running in Docker containers
 - A Maven project with all necessary dependencies
 - A robust connection management class
-- A test application that verifies connectivity
+- An example application that verifies connectivity
 
 This foundation gives us everything we need to start building our transit monitoring application. In the next module, we'll explore the GTFS data format and design our schema for storing transit data in Ignite.
 
@@ -684,7 +683,7 @@ This foundation gives us everything we need to start building our transit monito
 > **Final Module Checkpoint**: Before proceeding to the next module, ensure:
 >
 > - Your Ignite cluster is running (all three containers in "running" state)
-> - The connection test completes successfully
+> - The connection example completes successfully
 > - You can compile the project without errors
 > - You understand the basic client-server architecture of Ignite 3
 
