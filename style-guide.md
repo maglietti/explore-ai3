@@ -467,13 +467,30 @@ graph TD
 
 ### Callouts
 
-Use visual callouts for important information:
+Use the GitHub markdown [alerts extension](https://docs.github.com/en/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax#alerts) as described here for callouts:
 
-> **Note:** Use for helpful tips or additional context.
+> [!NOTE]
+> Useful information that users should know, even when skimming content.
 
-> **Important:** Use for critical information that shouldn't be missed.
+> [!TIP]
+> Helpful advice for doing things better or more easily.
 
-> **Caution:** Use for potential pitfalls or common mistakes.
+> [!IMPORTANT]
+> Key information users need to know to achieve their goal.
+
+> [!WARNING]
+> Urgent info that needs immediate user attention to avoid problems.
+
+> [!CAUTION]
+> Advises about risks or negative outcomes of certain actions.
+
+### Task Lists
+
+To create a task list, preface list items with a hyphen and space followed by [ ]. To mark a task as complete, use [x].
+
+- [x] #739
+- [ ] https://github.com/octo-org/octo-repo/issues/740
+- [ ] Add delight to the experience when all tasks are complete :tada:
 
 ## Terminology Management
 
