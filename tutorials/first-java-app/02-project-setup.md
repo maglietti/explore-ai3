@@ -379,6 +379,8 @@ Create a new file named `IgniteConnectionService.java` in the `src/main/java/com
 >}
 >```
 
+Replace everything in your new file with this code:
+
 ```java
 package com.example.transit.service;
 
@@ -459,12 +461,24 @@ This singleton class provides a central point for obtaining and managing the con
 
 ## Testing Your Connection
 
-Let's create a test class to verify that your connection to the Ignite cluster works correctly.
+Let's create an example class `IgniteClusterExample` to verify that your connection to the Ignite cluster works correctly.
 
-Create a file named `IgniteClusterTest.java`:
+>[!tip]
+>To create the `IgniteClusterExample.java` file:
+>
+>1. In IntelliJ IDEA, right-click on the `java` folder in your project structure
+>2. Select "New" > "Package"
+>3. Type the full package path: `com.example.transit.examples`
+>4. Click OK to create the package (IntelliJ will create all intermediate directories)
+>5. Right-click on the newly created `examples` package 
+>6. Select "New" > "Java Class"
+>7. Enter the class name: `IgniteClusterExample`
+>8. Click OK
+
+Replace everything in your new file with this code:
 
 ```java
-package com.example.transit;
+package com.example.transit.examples;
 
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
