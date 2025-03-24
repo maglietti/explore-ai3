@@ -12,8 +12,8 @@ While the tutorial uses Maven and command-line operations, you can adapt the app
 
 1. Open IntelliJ IDEA
 2. Select **File > New > Project**
-3. Choose **Maven** as the project type
-4. Enter the group id as `com.example`, artifact id as `transit-monitoring`
+3. Choose **Java** as the project type
+4. Enter the group id as `com.example`, artifact id as `transit-monitor`
 5. Click **Finish**
 6. Replace the contents of the generated `pom.xml` with our configuration
 7. Create the package structure by right-clicking on `src/main/java` and selecting **New > Package** and entering `com.example.transit`
@@ -89,7 +89,7 @@ Start by creating a Maven `pom.xml` file with the necessary dependencies for you
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>com.example</groupId>
-    <artifactId>transit-monitoring</artifactId>
+    <artifactId>transit-monitor</artifactId>
     <version>1.0</version>
 
     <properties>
