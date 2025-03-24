@@ -354,12 +354,33 @@ Cluster was initialized successfully
 
 ## Creating the Ignite Connection Manager
 
-Now that our cluster is running, we need a reliable way to connect to it from our Java application. Let's create an `IgniteConnection` class that will handle connection management, including initial setup, retry policies, and proper resource cleanup.
+Now that our cluster is running, we need a reliable way to connect to it from our Java application. Let's create an `IgniteConnectionService` class that will handle connection management, including initial setup, retry policies, and proper resource cleanup.
 
-Create a new file named `IgniteConnection.java` in the `src/main/java/com/example/transit` directory:
+Create a new file named `IgniteConnectionService.java` in the `src/main/java/com/example/transit/service` directory.
+
+>[!tip]
+>Create a new file in IntelliJ IDEA:
+>
+>1. Right-click on the `java` folder in your project structure
+>2. Select "New" > "Package"
+>3. Type the full package path: `com.example.transit.service`
+>4. Click OK to create the package (IntelliJ will create all intermediate directories)
+>5. Right-click on the newly created `service` package 
+>6. Select "New" > "Java Class"
+>7. Enter the class name: `IgniteConnectionService`
+>8. Click OK
+>
+>The file will be created with the correct package declaration at the top:
+>```java
+>package com.example.transit.service;
+>
+>public class IgniteConnectionService {
+>    // Class implementation here
+>}
+>```
 
 ```java
-package com.example.transit;
+package com.example.transit.service;
 
 import org.apache.ignite.client.IgniteClient;
 import org.apache.ignite.client.RetryReadPolicy;
@@ -369,7 +390,7 @@ import org.apache.ignite.client.RetryReadPolicy;
  * This class uses the Ignite 3 client API to establish and maintain
  * a connection to the cluster throughout our application's lifecycle.
  */
-public class IgniteConnection {
+public class IgniteConnectionService {
     private static IgniteClient igniteClient;
 
     /**
