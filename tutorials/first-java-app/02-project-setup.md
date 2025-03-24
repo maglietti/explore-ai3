@@ -40,21 +40,38 @@ If you prefer another editor:
 
 ## Directory Structure
 
-By the end of this module, your project structure should look like this:
+By the end of this tutorial, your project structure should look like this:
 
 ```shell
 transit-monitoring/
-├── pom.xml
+├── .env
+├── .gitignore
 ├── docker-compose.yml
-├── src/
-│   └── main/
-│       └── java/
-│           └── com/
-│               └── example/
-│                   └── transit/
-│                       ├── IgniteConnection.java
-│                       └── IgniteClusterTest.java
-│                       └── ...
+├── pom.xml
+├── src
+│   ├── main
+│   │   ├── java
+│   │   │   └── com
+│   │   │       └── example
+│   │   │           └── transit
+│   │   │               ├── app
+│   │   │               │   └── TransitMonitoringApp.java
+│   │   │               ├── service
+│   │   │               │   ├── DataIngestionService.java
+│   │   │               │   ├── DataVerificationService.java
+│   │   │               │   ├── GTFSFeedService.java
+│   │   │               │   ├── IgniteConnectionService.java
+│   │   │               │   ├── SchemaSetupService.java
+│   │   │               │   └── MonitoringService.java
+│   │   │               ├── util
+│   │   │               │   └── TerminalUtils.java
+│   │   │               └── examples
+│   │   │                   ├── DataIngestionExample.java
+│   │   │                   ├── GTFSConnectionExample.java
+│   │   │                   ├── IgniteClusterExample.java
+│   │   │                   ├── SchemaSetupExample.java
+│   │   │                   └── ServiceMonitorExample.java
+│   │   └── resources
 ```
 
 > [!tip]
