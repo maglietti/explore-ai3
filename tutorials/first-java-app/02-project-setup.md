@@ -322,6 +322,33 @@ Inside the CLI:
 >[!warning]
 > The initialization step is only performed once for a new cluster. If the command returns an error indicating the cluster is already initialized, you can proceed to the next step.
 
+```shell
+
+
+           #              ___                         __
+         ###             /   |   ____   ____ _ _____ / /_   ___
+     #  #####           / /| |  / __ \ / __ `// ___// __ \ / _ \
+   ###  ######         / ___ | / /_/ // /_/ // /__ / / / // ___/
+  #####  #######      /_/  |_|/ .___/ \__,_/ \___//_/ /_/ \___/
+  #######  ######            /_/
+    ########  ####        ____               _  __           _____
+   #  ########  ##       /  _/____ _ ____   (_)/ /_ ___     |__  /
+  ####  #######  #       / / / __ `// __ \ / // __// _ \     /_ <
+   #####  #####        _/ / / /_/ // / / // // /_ / ___/   ___/ /
+     ####  ##         /___/ \__, //_/ /_//_/ \__/ \___/   /____/
+       ##                  /____/
+
+                      Apache Ignite CLI version 3.0.0
+
+
+You appear to have not connected to any node yet. Do you want to connect to the default node http://localhost:10300? [Y/n] 
+Connected to http://localhost:10300
+The cluster is not initialized. Run cluster init command to initialize it.
+[node1]> cluster init --name=ignite3 --metastorage-group=node1,node2,node3
+Cluster was initialized successfully
+[node1]> 
+```
+
 > [!important]
 > **Checkpoint**: After running the initialization command, you should see a success message. If you see "Cluster initialized successfully" or a message indicating the cluster is already initialized, you can proceed to the next step.
 
