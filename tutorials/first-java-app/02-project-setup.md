@@ -388,53 +388,59 @@ import org.apache.ignite.client.IgniteClient;
 import org.apache.ignite.client.RetryReadPolicy;
 
 /**
- * Singleton class that manages the connection to the Ignite cluster.
+ * Service class that manages the connection to the Ignite cluster.
  * This class uses the Ignite 3 client API to establish and maintain
  * a connection to the cluster throughout our application's lifecycle.
+ * Implements AutoCloseable to support try-with-resources.
  */
-public class IgniteConnectionService {
-    private static IgniteClient igniteClient;
+public class IgniteConnectionService implements AutoCloseable {
+    private IgniteClient igniteClient;
 
     /**
-     * Gets a singleton instance of IgniteClient.
-     * The client connects to a local Ignite 3 cluster running on the default port.
+     * Constructor that initializes the Ignite client connection.
      *
-     * @return An initialized IgniteClient instance
      * @throws RuntimeException if the connection cannot be established
      */
-    public static synchronized IgniteClient getClient() {
-        if (igniteClient == null) {
-            try {
-                // Using the builder pattern introduced in Ignite 3
-                igniteClient = IgniteClient.builder()
-                        // Configure the addresses of all three Ignite server nodes
-                        // This provides redundancy and failover capabilities
-                        .addresses(
-                                "127.0.0.1:10800",  // Node 1
-                                "127.0.0.1:10801",  // Node 2
-                                "127.0.0.1:10802"   // Node 3
-                        )
-                        // Set connection timeout to 10 seconds
-                        .connectTimeout(10_000)
-                        // RetryReadPolicy allows read operations to be retried automatically on connection issues
-                        .retryPolicy(new RetryReadPolicy())
-                        // Build the client instance
-                        .build();
+    public IgniteConnectionService() {
+        try {
+            // Using the builder pattern introduced in Ignite 3
+            igniteClient = IgniteClient.builder()
+                    // Configure the addresses of all three Ignite server nodes
+                    // This provides redundancy and failover capabilities
+                    .addresses(
+                            "127.0.0.1:10800",  // Node 1
+                            "127.0.0.1:10801",  // Node 2
+                            "127.0.0.1:10802"   // Node 3
+                    )
+                    // Set connection timeout to 10 seconds
+                    .connectTimeout(10_000)
+                    // RetryReadPolicy allows read operations to be retried automatically on connection issues
+                    .retryPolicy(new RetryReadPolicy())
+                    // Build the client instance
+                    .build();
 
-                System.out.println("Successfully connected to Ignite cluster" + igniteClient.connections());
-            } catch (Exception e) {
-                System.err.println("Failed to connect to Ignite cluster: " + e.getMessage());
-                throw new RuntimeException("Ignite connection failure", e);
-            }
+            System.out.println("Successfully connected to Ignite cluster" + igniteClient.connections());
+        } catch (Exception e) {
+            System.err.println("Failed to connect to Ignite cluster: " + e.getMessage());
+            throw new RuntimeException("Ignite connection failure", e);
         }
+    }
+
+    /**
+     * Gets the IgniteClient instance.
+     *
+     * @return An initialized IgniteClient instance
+     */
+    public IgniteClient getClient() {
         return igniteClient;
     }
 
     /**
      * Closes the connection to the Ignite cluster.
-     * Call this method when shutting down your application to release resources.
+     * This method is automatically called when used with try-with-resources.
      */
-    public static void close() {
+    @Override
+    public void close() {
         if (igniteClient != null) {
             try {
                 igniteClient.close();
@@ -492,6 +498,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 /**
+ * Example class for verifying connection to an Ignite 3 cluster.
  * This class demonstrates how to connect to a cluster and retrieve information.
  */
 public class IgniteClusterExample {
@@ -500,30 +507,23 @@ public class IgniteClusterExample {
         // Configure logging to be quiet before any other operations
         configureLogging();
 
-        // Connect to Ignite cluster
-        IgniteClient client = null;
+        System.out.println("--- Connecting to Ignite cluster...");
 
-        try {
-            // Get client connection
-            System.out.println("--- Connecting to Ignite cluster...");
-            client = IgniteConnectionService.getClient();
+        // Use try-with-resources to automatically handle connection cleanup
+        try (IgniteConnectionService connectionService = new IgniteConnectionService()) {
+            IgniteClient client = connectionService.getClient();
 
             // Test the connection by retrieving cluster nodes
             System.out.println("Testing connection by retrieving cluster nodes...");
             testConnection(client);
 
             System.out.println("Ignite cluster operations completed successfully");
-
         } catch (Exception e) {
             System.err.println("Error during Ignite operations: " + e.getMessage());
             e.printStackTrace();
-        } finally {
-            // Always properly disconnect from the cluster
-            if (client != null) {
-                System.out.println("--- Disconnecting from Ignite cluster...");
-                IgniteConnectionService.close();
-            }
         }
+
+        System.out.println("--- Disconnected from Ignite cluster");
     }
 
     /**
@@ -549,7 +549,7 @@ public class IgniteClusterExample {
         System.out.println("\n========== IGNITE CLUSTER OVERVIEW ==========");
 
         // Get list of active connections (cluster nodes)
-        List<ClusterNode> clusterNnodes = client.connections();
+        List<ClusterNode> clusterNodes = client.connections();
 
         // 1. Cluster Topology Information
         System.out.println("\nCLUSTER TOPOLOGY:");
