@@ -42,10 +42,10 @@ By isolating the complexities of GTFS-realtime protocol buffer parsing, we make 
 
 Let's create a client that handles the connection to a GTFS-realtime feed and transforms the data into our domain model. This class encapsulates all the complexities of working with the protocol buffer format and external API endpoints.
 
-Create `GTFSFeedClient.java`:
+Create `GTFSFeedService.java`:
 
 ```java
-package com.example.transit;
+package com.example.transit.service;
 
 import com.google.transit.realtime.GtfsRealtime.FeedEntity;
 import com.google.transit.realtime.GtfsRealtime.FeedMessage;
@@ -53,23 +53,28 @@ import com.google.transit.realtime.GtfsRealtime.Position;
 
 import java.io.IOException;
 import java.net.URL;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
- * Client for retrieving GTFS-realtime feed data.
+ * Service for retrieving GTFS-realtime feed data.
  * This class handles the connection to the transit agency's GTFS feed,
- * parses the protobuf-formatted data, and converts it to our domain model.
+ * parses the protobuf-formatted data, and converts it to maps for storage.
  */
-public class GTFSFeedClient {
+public class GTFSFeedService {
     private final String feedUrl;
-    
+
     /**
-     * Creates a new GTFS feed client.
-     * 
+     * Creates a new GTFS feed service.
+     *
      * @param feedUrl The URL of the GTFS-realtime vehicle positions feed
      */
-    public GTFSFeedClient(String feedUrl) {
+    public GTFSFeedService(String feedUrl) {
         this.feedUrl = feedUrl;
     }
 
@@ -78,23 +83,23 @@ public class GTFSFeedClient {
      * This method:
      * 1. Connects to the feed URL
      * 2. Parses the protobuf data
-     * 3. Transforms it into our VehiclePosition domain objects
+     * 3. Transforms it into maps containing vehicle position data
      *
-     * @return List of vehicle positions
+     * @return List of maps containing vehicle positions
      * @throws IOException if there's an error fetching or parsing the feed
      */
-    public List<VehiclePosition> getVehiclePositions() throws IOException {
-        List<VehiclePosition> positions = new ArrayList<>();
+    public List<Map<String, Object>> getVehiclePositions() throws IOException {
+        List<Map<String, Object>> positions = new ArrayList<>();
 
         try {
             // Parse feed directly from URL
             URL url = new URL(feedUrl);
             FeedMessage feed = FeedMessage.parseFrom(url.openStream());
-            
+
             // Log feed metadata
-            System.out.println("GTFS Feed Version: " + feed.getHeader().getGtfsRealtimeVersion());
-            System.out.println("Feed Timestamp: " + feed.getHeader().getTimestamp());
-            System.out.println("Total entities: " + feed.getEntityCount());
+            System.out.println("--- GTFS Feed Version: " + feed.getHeader().getGtfsRealtimeVersion());
+            System.out.println("--- Feed Timestamp: " + feed.getHeader().getTimestamp());
+            System.out.println("--- Total entities: " + feed.getEntityCount());
 
             // Process each entity in the feed
             for (FeedEntity entity : feed.getEntityList()) {
@@ -109,39 +114,32 @@ public class GTFSFeedClient {
                         String routeId = vehicle.getTrip().getRouteId();
 
                         // Map the GTFS status to our string representation
-                        String status = "UNKNOWN";
-                        if (vehicle.hasCurrentStatus()) {
-                            switch (vehicle.getCurrentStatus()) {
-                                case IN_TRANSIT_TO:
-                                    status = "IN_TRANSIT_TO";
-                                    break;
-                                case STOPPED_AT:
-                                    status = "STOPPED_AT";
-                                    break;
-                                case INCOMING_AT:
-                                    status = "INCOMING_AT";
-                                    break;
-                                default:
-                                    status = "UNKNOWN";
-                                    break;
-                            }
-                        }
+                        String status = mapVehicleStatus(vehicle);
 
-                        // Create our vehicle position object
-                        positions.add(new VehiclePosition(
-                                vehicleId,
-                                routeId,
-                                position.getLatitude(),
-                                position.getLongitude(),
-                                // Convert seconds to milliseconds if present, otherwise use current time
-                                vehicle.hasTimestamp() ? vehicle.getTimestamp() * 1000 : System.currentTimeMillis(),
-                                status
-                        ));
+                        // Get timestamp (convert seconds to milliseconds if present, otherwise use current time)
+                        long timestamp = vehicle.hasTimestamp() ? vehicle.getTimestamp() * 1000 : System.currentTimeMillis();
+
+                        // LocalDateTime for Ignite storage
+                        LocalDateTime localDateTime = LocalDateTime.ofInstant(
+                                Instant.ofEpochMilli(timestamp),
+                                ZoneId.systemDefault()
+                        );
+
+                        // Create a map for the vehicle position
+                        Map<String, Object> vehiclePosition = new HashMap<>();
+                        vehiclePosition.put("vehicle_id", vehicleId);
+                        vehiclePosition.put("route_id", routeId);
+                        vehiclePosition.put("latitude", position.getLatitude());
+                        vehiclePosition.put("longitude", position.getLongitude());
+                        vehiclePosition.put("time_stamp", localDateTime);
+                        vehiclePosition.put("current_status", status);
+
+                        positions.add(vehiclePosition);
                     }
                 }
             }
 
-            System.out.println("Fetched " + positions.size() + " vehicle positions from feed");
+            System.out.println("+++ Fetched " + positions.size() + " vehicle positions from feed");
 
         } catch (IOException e) {
             System.err.println("Error fetching GTFS feed: " + e.getMessage());
@@ -152,6 +150,29 @@ public class GTFSFeedClient {
         }
 
         return positions;
+    }
+
+    /**
+     * Maps the GTFS vehicle status enum to a string representation.
+     *
+     * @param vehicle The GTFS vehicle position object
+     * @return String representation of the vehicle status
+     */
+    private String mapVehicleStatus(com.google.transit.realtime.GtfsRealtime.VehiclePosition vehicle) {
+        if (!vehicle.hasCurrentStatus()) {
+            return "UNKNOWN";
+        }
+
+        switch (vehicle.getCurrentStatus()) {
+            case IN_TRANSIT_TO:
+                return "IN_TRANSIT_TO";
+            case STOPPED_AT:
+                return "STOPPED_AT";
+            case INCOMING_AT:
+                return "INCOMING_AT";
+            default:
+                return "UNKNOWN";
+        }
     }
 }
 ```
@@ -220,148 +241,136 @@ Replace `your_token_here` with your actual API token from 511.org and save the `
 
 Let's validate our GTFS client with a test application before integrating with Ignite.
 
-Create `GTFSConnectionTest.java`:
+Create `GTFSFeedExample.java`:
 
 ```java
-package com.example.transit;
+package com.example.transit.examples;
 
-import io.github.cdimascio.dotenv.Dotenv;
+import com.example.transit.service.*;
+import com.example.transit.util.LoggingUtil;
+import org.apache.ignite.client.IgniteClient;
 
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 /**
- * Test class to verify the GTFS connection and data parsing.
- * This standalone application demonstrates fetching and analyzing
- * real-time vehicle positions from a transit agency.
+ * Example application that demonstrates fetching and analyzing
+ * real-time vehicle positions from a transit agency and storing
+ * them in an Apache Ignite database.
  */
-public class GTFSConnectionTest {
+public class GTFSFeedExample {
+
+    private static final String VEHICLE_TABLE = "vehicle_positions";
 
     public static void main(String[] args) {
-        System.out.println("=== GTFS Connection Test ===");
-        
-        // Load environment variables from .env file
-        Dotenv dotenv = Dotenv.configure().ignoreIfMissing().load();
+        // Configure logging to suppress unnecessary output
+        LoggingUtil.setLogs("OFF");
 
-        // Retrieve configuration values
-        String apiToken = dotenv.get("API_TOKEN");
-        String baseUrl = dotenv.get("GTFS_BASE_URL");
-        String agency = dotenv.get("GTFS_AGENCY");
+        System.out.println("=== GTFS Feed Example ===");
 
-        // Validate configuration
-        if (apiToken == null || baseUrl == null || agency == null) {
-            System.err.println("Missing configuration. Please check your .env file.");
-            System.err.println("Required variables: API_TOKEN, GTFS_BASE_URL, GTFS_AGENCY");
+        // Load configuration
+        ConfigurationService config = ConfigurationService.getInstance();
+        if (!config.validateConfiguration()) {
             return;
         }
 
-        // Construct the full feed URL
-        String feedUrl = String.format("%s?api_key=%s&agency=%s", baseUrl, apiToken, agency);
+        System.out.println("+++ Using GTFS feed URL: " + config.getRedactedFeedUrl());
 
-        System.out.println("Using GTFS feed URL: " + feedUrl.replaceAll(apiToken, "[API_TOKEN]")); // Hide token in logs
+        // Initialize Ignite connection service
+        try (IgniteConnectionService connectionService = new IgniteConnectionService()) {
+            IgniteClient client = connectionService.getClient();
+            ReportingService reportingService = new ReportingService(client);
 
-        // Create the feed client
-        GTFSFeedClient feedClient = new GTFSFeedClient(feedUrl);
-
-        try {
-            // Fetch vehicle positions
-            System.out.println("Fetching vehicle positions...");
-            List<VehiclePosition> positions = feedClient.getVehiclePositions();
-
-            if (positions.isEmpty()) {
-                System.out.println("Warning: No vehicle positions found in the feed.");
-                System.out.println("This could indicate an issue with the feed URL, API token, or the agency may not have active vehicles at this time.");
+            // Set up the schema for storing vehicle positions
+            SchemaSetupService schemaService = new SchemaSetupService(connectionService);
+            if (!schemaService.createSchema()) {
+                System.err.println("Failed to set up database schema. Exiting.");
                 return;
             }
 
-            System.out.println("Success! Retrieved " + positions.size() + " vehicle positions.");
+            // Create the feed service
+            GTFSFeedService feedService = new GTFSFeedService(config.getFeedUrl());
 
-            // Print the first 5 positions as a sample
-            System.out.println("\nSample data (first 5 vehicles):");
-            positions.stream()
-                    .limit(5)
-                    .forEach(System.out::println);
+            try {
+                // Fetch vehicle positions
+                System.out.println("=== Fetching vehicle positions...");
+                List<Map<String, Object>> positions = feedService.getVehiclePositions();
 
-            // Calculate and display statistics
-            analyzeVehicleData(positions);
+                if (positions.isEmpty()) {
+                    System.out.println("Warning: No vehicle positions found in the feed.");
+                    System.out.println("This could indicate an issue with the feed URL, API token, or the agency may not have active vehicles at this time.");
+                    return;
+                }
 
-        } catch (IOException e) {
-            System.err.println("Error testing GTFS feed: " + e.getMessage());
-            System.err.println("Check your internet connection and API token.");
+                System.out.println("=== Success! Retrieved " + positions.size() + " vehicle positions.");
+
+                // Print the first 5 positions as a sample
+                System.out.println("\nSample data (first 5 vehicles):");
+                positions.stream()
+                        .limit(5)
+                        .forEach(pos -> System.out.println(reportingService.formatVehicleData(pos)));
+
+                // Calculate and display statistics
+                reportingService.analyzeVehicleData(positions);
+
+                // Store vehicle positions in Ignite
+                storeVehiclePositions(client, positions);
+
+            } catch (IOException e) {
+                System.err.println("Error testing GTFS feed: " + e.getMessage());
+                System.err.println("Check your internet connection and API token.");
+                e.printStackTrace();
+
+                // Provide fallback options
+                System.out.println("\nTroubleshooting suggestions:");
+                System.out.println("1. Verify your API token is correct in the .env file");
+                System.out.println("2. Check if the agency code is correct (e.g., 'SF' for San Francisco Muni)");
+                System.out.println("3. Try accessing the feed URL in a browser (with your API token)");
+            }
+        } catch (Exception e) {
+            System.err.println("Error initializing Ignite connection: " + e.getMessage());
             e.printStackTrace();
-            
-            // Provide fallback options
-            System.out.println("\nTroubleshooting suggestions:");
-            System.out.println("1. Verify your API token is correct in the .env file");
-            System.out.println("2. Check if the agency code is correct (e.g., 'SF' for San Francisco Muni)");
-            System.out.println("3. Try accessing the feed URL in a browser (with your API token)");
         }
+
+        System.out.println("=== GTFS Feed Example Completed");
     }
-    
+
     /**
-     * Analyzes the vehicle position data and displays useful statistics.
-     * 
-     * @param positions List of vehicle positions to analyze
+     * Store vehicle positions in Ignite database.
+     *
+     * @param client Ignite client connection
+     * @param positions List of vehicle position maps to store
      */
-    private static void analyzeVehicleData(List<VehiclePosition> positions) {
-        // Count unique routes and vehicles
-        long uniqueRoutes = positions.stream()
-                .map(VehiclePosition::getRouteId)
-                .distinct()
-                .count();
+    private static void storeVehiclePositions(IgniteClient client, List<Map<String, Object>> positions) {
+        System.out.println("\n=== Storing " + positions.size() + " vehicle positions in Ignite...");
 
-        long uniqueVehicles = positions.stream()
-                .map(VehiclePosition::getVehicleId)
-                .distinct()
-                .count();
-                
-        // Count vehicles by status
-        Map<String, Long> statusCounts = positions.stream()
-                .collect(Collectors.groupingBy(
-                        VehiclePosition::getCurrentStatus,
-                        Collectors.counting()
-                ));
-                
-        // Find top 5 routes by vehicle count
-        Map<String, Long> routeCounts = positions.stream()
-                .collect(Collectors.groupingBy(
-                        VehiclePosition::getRouteId,
-                        Collectors.counting()
-                ));
-                
-        List<Map.Entry<String, Long>> topRoutes = routeCounts.entrySet().stream()
-                .sorted(Map.Entry.<String, Long>comparingByValue().reversed())
-                .limit(5)
-                .collect(Collectors.toList());
+        // Prepare SQL statement
+        String insertSql = "INSERT INTO " + VEHICLE_TABLE +
+                " (vehicle_id, route_id, latitude, longitude, time_stamp, current_status) " +
+                "VALUES (?, ?, ?, ?, ?, ?)";
 
-        // Display statistics
-        System.out.println("\n=== Transit System Statistics ===");
-        System.out.println("• Unique routes: " + uniqueRoutes);
-        System.out.println("• Unique vehicles: " + uniqueVehicles);
-        
-        System.out.println("\nVehicle status distribution:");
-        statusCounts.forEach((status, count) -> 
-            System.out.println("• " + status + ": " + count + " vehicles (" + 
-                String.format("%.1f", (count * 100.0 / positions.size())) + "%)"));
-        
-        System.out.println("\nTop 5 routes by vehicle count:");
-        for (int i = 0; i < topRoutes.size(); i++) {
-            Map.Entry<String, Long> route = topRoutes.get(i);
-            System.out.println("• Route " + route.getKey() + ": " + 
-                route.getValue() + " vehicles");
+        int successCount = 0;
+
+        // Insert each position
+        for (Map<String, Object> position : positions) {
+            try {
+                client.sql().execute(null, insertSql,
+                        position.get("vehicle_id"),
+                        position.get("route_id"),
+                        position.get("latitude"),
+                        position.get("longitude"),
+                        position.get("time_stamp"),
+                        position.get("current_status"));
+
+                successCount++;
+            } catch (Exception e) {
+                System.err.println("Error inserting vehicle position: " + e.getMessage());
+                // Continue with the next position
+            }
         }
-        
-        // Calculate geographic bounds
-        double minLat = positions.stream().mapToDouble(VehiclePosition::getLatitude).min().orElse(0);
-        double maxLat = positions.stream().mapToDouble(VehiclePosition::getLatitude).max().orElse(0);
-        double minLon = positions.stream().mapToDouble(VehiclePosition::getLongitude).min().orElse(0);
-        double maxLon = positions.stream().mapToDouble(VehiclePosition::getLongitude).max().orElse(0);
-        
-        System.out.println("\nGeographic coverage:");
-        System.out.println("• Latitude range: " + minLat + " to " + maxLat);
-        System.out.println("• Longitude range: " + minLon + " to " + maxLon);
+
+        System.out.println("+++ Successfully stored " + successCount + " vehicle positions in Ignite.");
     }
 }
 ```

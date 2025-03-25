@@ -279,7 +279,7 @@ public class SchemaSetupExample {
      */
     public static void main(String[] args) {
         // Configure logging to suppress unnecessary output
-        LoggingUtil.suppressLogs();
+        LoggingUtil.setLogs("OFF");
 
         System.out.println("=== Table Creation Example ===");
 
@@ -303,7 +303,6 @@ public class SchemaSetupExample {
         }
 
         System.out.println("=== Table operations completed");
-
     }
 
     /**

@@ -419,7 +419,7 @@ public class IgniteConnectionService implements AutoCloseable {
                     // Build the client instance
                     .build();
 
-            System.out.println("Successfully connected to Ignite cluster" + igniteClient.connections());
+            System.out.println("=== Successfully connected to Ignite cluster: " + igniteClient.connections());
         } catch (Exception e) {
             System.err.println("Failed to connect to Ignite cluster: " + e.getMessage());
             throw new RuntimeException("Ignite connection failure", e);
@@ -445,7 +445,7 @@ public class IgniteConnectionService implements AutoCloseable {
             try {
                 igniteClient.close();
                 igniteClient = null;
-                System.out.println("Ignite client connection closed");
+                System.out.println("=== Ignite client connection closed");
             } catch (Exception e) {
                 System.err.println("Error closing Ignite client: " + e.getMessage());
             }
@@ -464,6 +464,54 @@ This singleton class provides a central point for obtaining and managing the con
 - **High availability**: Multiple node addresses ensure the application can connect even if one node is down
 - **Automatic retries**: The RetryReadPolicy helps maintain resilience during temporary network issues
 - **Proper resource cleanup**: The close method ensures resources are released when the application shuts down
+
+## Logging Utility Class
+
+Create `LoggingUtil`: 
+
+```java
+package com.example.transit.util;
+
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import org.slf4j.LoggerFactory;
+
+/**
+ * Utility class for configuring logging settings.
+ * Used to control log output during application execution.
+ */
+public class LoggingUtil {
+
+    /**
+     * Sets the logging level for root logger and specific loggers.
+     *
+     * @param level String representation of the log level ("OFF", "ERROR", "WARN", "INFO", "DEBUG", "TRACE")
+     * @throws IllegalArgumentException if an invalid log level is provided
+     */
+    public static void setLogs(String level) {
+        // Convert string to Level enum
+        Level logLevel;
+        try {
+            logLevel = Level.valueOf(level);
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("Invalid log level: " + level +
+                    ". Valid options are: OFF, ERROR, WARN, INFO, DEBUG, TRACE");
+        }
+
+        // Get the Logback root logger and set it to the specified level
+        Logger root = (Logger) LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME);
+        root.setLevel(logLevel);
+
+        // Specifically set Netty logger (used by Ignite for networking)
+        Logger nettyLogger = (Logger) LoggerFactory.getLogger("io.netty");
+        nettyLogger.setLevel(logLevel);
+
+        // Ignite logger
+        Logger igniteLogger = (Logger) LoggerFactory.getLogger("org.apache.ignite");
+        igniteLogger.setLevel(logLevel);
+    }
+}
+```
 
 ## Testing Your Connection
 
@@ -486,13 +534,11 @@ Replace everything in your new file with this code:
 ```java
 package com.example.transit.examples;
 
-import ch.qos.logback.classic.Level;
-import ch.qos.logback.classic.Logger;
 import com.example.transit.service.IgniteConnectionService;
+import com.example.transit.util.LoggingUtil;
 import org.apache.ignite.client.IgniteClient;
 import org.apache.ignite.client.RetryLimitPolicy;
 import org.apache.ignite.network.ClusterNode;
-import org.slf4j.LoggerFactory;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -504,40 +550,25 @@ import java.util.stream.Collectors;
 public class IgniteClusterExample {
 
     public static void main(String[] args) {
-        // Configure logging to be quiet before any other operations
-        configureLogging();
+        // Configure logging to suppress unnecessary output
+        LoggingUtil.setLogs("OFF");
 
-        System.out.println("--- Connecting to Ignite cluster...");
+        System.out.println("=== Connecting to Ignite cluster...");
 
         // Use try-with-resources to automatically handle connection cleanup
         try (IgniteConnectionService connectionService = new IgniteConnectionService()) {
             IgniteClient client = connectionService.getClient();
 
             // Test the connection by retrieving cluster nodes
-            System.out.println("Testing connection by retrieving cluster nodes...");
+            System.out.println("+++ Testing connection by retrieving cluster nodes...");
             testConnection(client);
 
-            System.out.println("Ignite cluster operations completed successfully");
         } catch (Exception e) {
             System.err.println("Error during Ignite operations: " + e.getMessage());
             e.printStackTrace();
         }
 
-        System.out.println("--- Disconnected from Ignite cluster");
-    }
-
-    /**
-     * Configure logging to completely suppress all log messages.
-     * This is useful for tests to keep the console output to a minimum.
-     */
-    private static void configureLogging() {
-        // Get the Logback root logger and set it to OFF
-        Logger root = (Logger) LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME);
-        root.setLevel(Level.OFF);
-
-        // Specifically set Netty logger to OFF as well
-        Logger nettyLogger = (Logger) LoggerFactory.getLogger("io.netty");
-        nettyLogger.setLevel(Level.OFF);
+        System.out.println("=== Disconnected from Ignite cluster");
     }
 
     /**
