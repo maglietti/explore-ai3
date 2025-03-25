@@ -42,7 +42,7 @@ By isolating the complexities of GTFS-realtime protocol buffer parsing, we make 
 
 Let's create a client that handles the connection to a GTFS-realtime feed and transforms the data into our domain model. This class encapsulates all the complexities of working with the protocol buffer format and external API endpoints.
 
-Create `GTFSFeedService.java`:
+Create `GtfsService.java`:
 
 ```java
 package com.example.transit.service;
@@ -66,7 +66,7 @@ import java.util.Map;
  * This class handles the connection to the transit agency's GTFS feed,
  * parses the protobuf-formatted data, and converts it to maps for storage.
  */
-public class GTFSFeedService {
+public class GtfsService {
     private final String feedUrl;
 
     /**
@@ -74,16 +74,12 @@ public class GTFSFeedService {
      *
      * @param feedUrl The URL of the GTFS-realtime vehicle positions feed
      */
-    public GTFSFeedService(String feedUrl) {
+    public GtfsService(String feedUrl) {
         this.feedUrl = feedUrl;
     }
 
     /**
      * Retrieves vehicle positions from the GTFS feed.
-     * This method:
-     * 1. Connects to the feed URL
-     * 2. Parses the protobuf data
-     * 3. Transforms it into maps containing vehicle position data
      *
      * @return List of maps containing vehicle positions
      * @throws IOException if there's an error fetching or parsing the feed
@@ -95,11 +91,6 @@ public class GTFSFeedService {
             // Parse feed directly from URL
             URL url = new URL(feedUrl);
             FeedMessage feed = FeedMessage.parseFrom(url.openStream());
-
-            // Log feed metadata
-            System.out.println("--- GTFS Feed Version: " + feed.getHeader().getGtfsRealtimeVersion());
-            System.out.println("--- Feed Timestamp: " + feed.getHeader().getTimestamp());
-            System.out.println("--- Total entities: " + feed.getEntityCount());
 
             // Process each entity in the feed
             for (FeedEntity entity : feed.getEntityList()) {
@@ -116,14 +107,15 @@ public class GTFSFeedService {
                         // Map the GTFS status to our string representation
                         String status = mapVehicleStatus(vehicle);
 
-                        // Get timestamp (convert seconds to milliseconds if present, otherwise use current time)
-                        long timestamp = vehicle.hasTimestamp() ? vehicle.getTimestamp() * 1000 : System.currentTimeMillis();
+                        // Get timestamp (convert seconds to milliseconds if present, otherwise use
+                        // current time)
+                        long timestamp = vehicle.hasTimestamp() ? vehicle.getTimestamp() * 1000
+                                : System.currentTimeMillis();
 
                         // LocalDateTime for Ignite storage
                         LocalDateTime localDateTime = LocalDateTime.ofInstant(
                                 Instant.ofEpochMilli(timestamp),
-                                ZoneId.systemDefault()
-                        );
+                                ZoneId.systemDefault());
 
                         // Create a map for the vehicle position
                         Map<String, Object> vehiclePosition = new HashMap<>();
@@ -138,8 +130,6 @@ public class GTFSFeedService {
                     }
                 }
             }
-
-            System.out.println("+++ Fetched " + positions.size() + " vehicle positions from feed");
 
         } catch (IOException e) {
             System.err.println("Error fetching GTFS feed: " + e.getMessage());
@@ -176,19 +166,6 @@ public class GTFSFeedService {
     }
 }
 ```
-
-> [!note]
-> The `FeedMessage`, `FeedEntity`, and other GTFS-realtime classes come from the `gtfs-realtime-bindings` library we included in our Maven dependencies. These classes are generated from the GTFS-realtime protocol buffer definition and provide a Java API for accessing the protobuf data.
->
-> **Key Sections Explained**:
->
-> 1. **Initialization**: We store the feed URL for later use
-> 2. **HTTP Connection**: We open a connection to the feed URL using Java's `URL` class
-> 3. **Protobuf Parsing**: We parse the binary data stream using the `parseFrom` method
-> 4. **Data Extraction**: We extract relevant fields from each vehicle entity
-> 5. **Status Mapping**: We convert the GTFS enum status to our string representation
-> 6. **Domain Transformation**: We create our `VehiclePosition` objects with the extracted data
-> 7. **Error Handling**: We catch and properly handle both network and parsing errors
 
 ## GTFS-realtime Feed API Token
 
@@ -232,7 +209,6 @@ Replace `your_token_here` with your actual API token from 511.org and save the `
 > [!important]
 > **Checkpoint**: Before proceeding, make sure you have:
 >
-> - Created the `GTFSFeedClient.java` file with the provided code
 > - Obtained an API token from 511.org (or another transit data provider)
 > - Created a `.env` file with your configuration
 > - Added `.env` to your `.gitignore` file (if using version control)
@@ -241,7 +217,10 @@ Replace `your_token_here` with your actual API token from 511.org and save the `
 
 Let's validate our GTFS client with a test application before integrating with Ignite.
 
-Create `GTFSFeedExample.java`:
+> [!warning]
+> From this point forward, the examples will depend on additional service classes to implement shared functions and keep separation of concerns in check. We recommend that you clone the [sample repo](https://github.com/maglietti/transit-monitor) at this point and follow along using it so that you do not have issues compiling the example classes.
+
+Create `GtfsFeedExample.java`:
 
 ```java
 package com.example.transit.examples;
@@ -259,9 +238,7 @@ import java.util.Map;
  * real-time vehicle positions from a transit agency and storing
  * them in an Apache Ignite database.
  */
-public class GTFSFeedExample {
-
-    private static final String VEHICLE_TABLE = "vehicle_positions";
+public class GtfsFeedExample {
 
     public static void main(String[] args) {
         // Configure logging to suppress unnecessary output
@@ -270,7 +247,7 @@ public class GTFSFeedExample {
         System.out.println("=== GTFS Feed Example ===");
 
         // Load configuration
-        ConfigurationService config = ConfigurationService.getInstance();
+        ConfigService config = ConfigService.getInstance();
         if (!config.validateConfiguration()) {
             return;
         }
@@ -278,32 +255,35 @@ public class GTFSFeedExample {
         System.out.println("+++ Using GTFS feed URL: " + config.getRedactedFeedUrl());
 
         // Initialize Ignite connection service
-        try (IgniteConnectionService connectionService = new IgniteConnectionService()) {
+        try (ConnectService connectionService = new ConnectService()) {
             IgniteClient client = connectionService.getClient();
-            ReportingService reportingService = new ReportingService(client);
+            ReportService reportingService = new ReportService(client);
 
             // Set up the schema for storing vehicle positions
-            SchemaSetupService schemaService = new SchemaSetupService(connectionService);
+            SchemaService schemaService = new SchemaService(connectionService);
             if (!schemaService.createSchema()) {
                 System.err.println("Failed to set up database schema. Exiting.");
                 return;
             }
 
             // Create the feed service
-            GTFSFeedService feedService = new GTFSFeedService(config.getFeedUrl());
+            GtfsService feedService = new GtfsService(config.getFeedUrl());
 
             try {
                 // Fetch vehicle positions
                 System.out.println("=== Fetching vehicle positions...");
                 List<Map<String, Object>> positions = feedService.getVehiclePositions();
 
+                System.out.println("+++ Fetched " + positions.size() + " vehicle positions from feed");
+
                 if (positions.isEmpty()) {
                     System.out.println("Warning: No vehicle positions found in the feed.");
-                    System.out.println("This could indicate an issue with the feed URL, API token, or the agency may not have active vehicles at this time.");
+                    System.out.println(
+                            "This could indicate an issue with the feed URL, API token, or the agency may not have active vehicles at this time.");
                     return;
                 }
 
-                System.out.println("=== Success! Retrieved " + positions.size() + " vehicle positions.");
+                System.out.println("=== Success!");
 
                 // Print the first 5 positions as a sample
                 System.out.println("\nSample data (first 5 vehicles):");
@@ -314,19 +294,11 @@ public class GTFSFeedExample {
                 // Calculate and display statistics
                 reportingService.analyzeVehicleData(positions);
 
-                // Store vehicle positions in Ignite
-                storeVehiclePositions(client, positions);
-
             } catch (IOException e) {
                 System.err.println("Error testing GTFS feed: " + e.getMessage());
                 System.err.println("Check your internet connection and API token.");
                 e.printStackTrace();
 
-                // Provide fallback options
-                System.out.println("\nTroubleshooting suggestions:");
-                System.out.println("1. Verify your API token is correct in the .env file");
-                System.out.println("2. Check if the agency code is correct (e.g., 'SF' for San Francisco Muni)");
-                System.out.println("3. Try accessing the feed URL in a browser (with your API token)");
             }
         } catch (Exception e) {
             System.err.println("Error initializing Ignite connection: " + e.getMessage());
@@ -336,48 +308,10 @@ public class GTFSFeedExample {
         System.out.println("=== GTFS Feed Example Completed");
     }
 
-    /**
-     * Store vehicle positions in Ignite database.
-     *
-     * @param client Ignite client connection
-     * @param positions List of vehicle position maps to store
-     */
-    private static void storeVehiclePositions(IgniteClient client, List<Map<String, Object>> positions) {
-        System.out.println("\n=== Storing " + positions.size() + " vehicle positions in Ignite...");
-
-        // Prepare SQL statement
-        String insertSql = "INSERT INTO " + VEHICLE_TABLE +
-                " (vehicle_id, route_id, latitude, longitude, time_stamp, current_status) " +
-                "VALUES (?, ?, ?, ?, ?, ?)";
-
-        int successCount = 0;
-
-        // Insert each position
-        for (Map<String, Object> position : positions) {
-            try {
-                client.sql().execute(null, insertSql,
-                        position.get("vehicle_id"),
-                        position.get("route_id"),
-                        position.get("latitude"),
-                        position.get("longitude"),
-                        position.get("time_stamp"),
-                        position.get("current_status"));
-
-                successCount++;
-            } catch (Exception e) {
-                System.err.println("Error inserting vehicle position: " + e.getMessage());
-                // Continue with the next position
-            }
-        }
-
-        System.out.println("+++ Successfully stored " + successCount + " vehicle positions in Ignite.");
-    }
 }
 ```
 
 > [!note]
-> This test application demonstrates several Java 8 features like streams, lambda expressions, and method references. The `analyzeVehicleData` method shows how to use streams to calculate statistics on collections of data.
->
 > **The test application works as follows**:
 >
 > 1. **Load Configuration**: Read API credentials from the `.env` file
@@ -392,93 +326,60 @@ public class GTFSFeedExample {
 Execute the test to validate the GTFS client:
 
 ```bash
-mvn compile exec:java -Dexec.mainClass="com.example.transit.GTFSConnectionTest"
+mvn compile exec:java -Dexec.mainClass="com.example.transit.examples.GtfsFeedExample"
 ```
 
 Successful execution will produce output similar to:
 
 ``` text
-Using GTFS feed URL: https://api.511.org/transit/vehiclepositions?api_key=[API_TOKEN]&agency=SF
-Fetching vehicle positions...
-GTFS Feed Version: 2.0
-Feed Timestamp: 1647532156
-Total entities: 540
-Fetched 540 vehicle positions from feed
-Success! Retrieved 540 vehicle positions.
+=== GTFS Feed Example ===
++++ Using GTFS feed URL: https://api.511.org/transit/vehiclepositions?api_key=[API_TOKEN]&agency=SF
+--- Successfully connected to Ignite cluster: [ClientClusterNode [id=269b35be-01cb-4013-9333-add1ef38e05a, name=node3, address=127.0.0.1:10802, nodeMetadata=null]]
+>>> Vehicle positions table already exists.
+=== Fetching vehicle positions...
++++ Fetched 536 vehicle positions from feed
+=== Success!
 
 Sample data (first 5 vehicles):
-Vehicle ID: 1050, Route: F, Position: (37.7687873840332, -122.42732238769531), Status: STOPPED_AT, Time: 2023-03-18 10:53:23.0
-Vehicle ID: 1051, Route: F, Position: (37.782012939453125, -122.41065979003906), Status: STOPPED_AT, Time: 2023-03-18 10:53:23.0
-Vehicle ID: 1052, Route: F, Position: (37.72022247314453, -122.44660949707031), Status: IN_TRANSIT_TO, Time: 2023-03-18 10:53:23.0
-Vehicle ID: 1058, Route: F, Position: (37.80823516845703, -122.416015625), Status: IN_TRANSIT_TO, Time: 2023-03-18 10:53:23.0
-Vehicle ID: 1059, Route: F, Position: (37.792911529541016, -122.3965835571289), Status: STOPPED_AT, Time: 2023-03-18 10:53:23.0
++++ Vehicle 1006 on route F at (37.798801, -122.397285) - Status: IN_TRANSIT_TO
++++ Vehicle 1010 on route F at (37.758701, -122.427879) - Status: IN_TRANSIT_TO
++++ Vehicle 1051 on route F at (37.793968, -122.395416) - Status: IN_TRANSIT_TO
++++ Vehicle 1056 on route F at (37.781357, -122.411392) - Status: INCOMING_AT
++++ Vehicle 1057 on route F at (37.808189, -122.416672) - Status: IN_TRANSIT_TO
 
 === Transit System Statistics ===
-• Unique routes: 58
-• Unique vehicles: 540
+• Unique routes: 56
+• Unique vehicles: 536
 
 Vehicle status distribution:
-• IN_TRANSIT_TO: 342 vehicles (63.3%)
-• STOPPED_AT: 198 vehicles (36.7%)
+• IN_TRANSIT_TO: 204 vehicles (38.1%)
+• STOPPED_AT: 220 vehicles (41.0%)
+• INCOMING_AT: 112 vehicles (20.9%)
 
 Top 5 routes by vehicle count:
-• Route 14: 32 vehicles
-• Route 5: 30 vehicles
-• Route 38: 28 vehicles
-• Route 1: 26 vehicles
-• Route 8: 24 vehicles
+• Route 49: 22 vehicles
+• Route 14R: 22 vehicles
+• Route 29: 22 vehicles
+• Route 1: 20 vehicles
+• Route 22: 19 vehicles
 
 Geographic coverage:
-• Latitude range: 37.7090301513672 to 37.8102340698242
-• Longitude range: -122.5108642578125 to -122.3889923095703
+• Latitude range: 37.705257415771484 to 37.81974411010742
+• Longitude range: -122.50987243652344 to -122.36726379394531
+--- Ignite client connection closed
+=== GTFS Feed Example Completed
 ```
 
 > [!note]
 > Your actual output will vary depending on the current state of the transit system. The number of vehicles, their statuses, and their locations will change as vehicles move through the system.
 
 > [!important]
-> **Checkpoint #3**: After running the test application, verify that:
+> **Checkpoint**: After running the test application, verify that:
 >
 > - The application successfully connects to the GTFS feed
 > - Vehicle positions are properly parsed and transformed
 > - You can see statistics about the transit system
 > - There are no errors or exceptions
-
-## Understanding the GTFS Client Architecture
-
-Let's examine the key architectural decisions in our GTFS client implementation:
-
-### Separation of Concerns
-
-Our client follows the Single Responsibility Principle by focusing solely on:
-
-1. Connecting to the GTFS feed
-2. Parsing the protocol buffer data
-3. Transforming it to our domain model
-
-This separation isolates the complexities of the external API and data format from the rest of our application.
-
-### Data Transformation Pattern
-
-The client implements a data transformation pattern:
-
-```mermaid
-graph LR
-    A[External Format: Protocol Buffer] --> B[Parse & Extract]
-    B --> C[Transform]
-    C --> D[Domain Model: VehiclePosition]
-```
-
-This approach allows our application to work with a consistent domain model regardless of changes in the external data format.
-
-### Error Handling Strategy
-
-The client uses a two-tier error handling approach:
-
-1. **Detailed logging**: Provides context about what went wrong
-2. **Exception propagation**: Allows the calling code to decide how to handle failures
-
-This gives flexibility while ensuring errors aren't silently ignored.
 
 ## Next Steps
 
