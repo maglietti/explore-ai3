@@ -12,8 +12,8 @@ While the tutorial uses Maven and command-line operations, you can adapt the app
 
 1. Open IntelliJ IDEA
 2. Select **File > New > Project**
-3. Choose **Maven** as the project type
-4. Enter the group id as `com.example`, artifact id as `transit-monitoring`
+3. Choose **Java** as the project type
+4. Enter the group id as `com.example`, artifact id as `transit-monitor`
 5. Click **Finish**
 6. Replace the contents of the generated `pom.xml` with our configuration
 7. Create the package structure by right-clicking on `src/main/java` and selecting **New > Package** and entering `com.example.transit`
@@ -40,21 +40,41 @@ If you prefer another editor:
 
 ## Directory Structure
 
-By the end of this module, your project structure should look like this:
+By the end of this tutorial, your project structure should look like this:
 
 ```shell
 transit-monitoring/
-├── pom.xml
 ├── docker-compose.yml
-├── src/
-│   └── main/
-│       └── java/
-│           └── com/
-│               └── example/
-│                   └── transit/
-│                       ├── IgniteConnection.java
-│                       └── IgniteClusterTest.java
-│                       └── ...
+├── pom.xml
+├── README.md
+└── src
+    ├── main
+    │   ├── java
+    │   │   └── com
+    │   │       └── example
+    │   │           └── transit
+    │   │               ├── app
+    │   │               │   └── TransitMonitorApp.java
+    │   │               ├── examples
+    │   │               │   ├── ConnectExample.java
+    │   │               │   ├── GtfsFeedExample.java
+    │   │               │   ├── IngestExample.java
+    │   │               │   ├── SchemaSetupExample.java
+    │   │               │   └── ServiceMonitorExample.java
+    │   │               ├── service
+    │   │               │   ├── ConfigService.java
+    │   │               │   ├── ConnectService.java
+    │   │               │   ├── GtfsService.java
+    │   │               │   ├── IngestService.java
+    │   │               │   ├── MonitorService.java
+    │   │               │   ├── ReportService.java
+    │   │               │   └── SchemaService.java
+    │   │               └── util
+    │   │                   ├── LoggingUtil.java
+    │   │                   └── TerminalUtil.java
+    │   └── resources
+    └── test
+        └── java
 ```
 
 > [!tip]
@@ -72,7 +92,7 @@ Start by creating a Maven `pom.xml` file with the necessary dependencies for you
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>com.example</groupId>
-    <artifactId>transit-monitoring</artifactId>
+    <artifactId>transit-monitor</artifactId>
     <version>1.0</version>
 
     <properties>
@@ -154,15 +174,12 @@ This Maven configuration includes:
 Before we set up our Ignite cluster, let's briefly explore Ignite's architecture. Apache Ignite 3 follows a client-server model:
 
 - **Server Nodes**: Form the distributed cluster where data is stored and processed
-- **Thin Clients**: Lightweight connections that communicate with the cluster
+- **Clients**: Lightweight connections that communicate with the cluster
 
-Unlike in Ignite 2.x, Ignite 3 exclusively uses the thin client model. This separation provides several advantages:
+>[!note]
+>Unlike in Ignite 2.x, there is no separate Thin and Thick clients in Ignite 3. All clients are 'thin'. Ignite 3 provides an [embedded mode](https://ignite.apache.org/docs/ignite3/latest/quick-start/embedded-mode) for starting and working with the cluster from code.
 
-1. **Resource Efficiency**: Clients require minimal memory and CPU
-2. **Language Flexibility**: Clients can be implemented in various languages
-3. **Operational Simplicity**: Server nodes can be deployed and scaled independently
-
-In our application, we'll use Java thin clients to connect to a cluster of Ignite server nodes running in Docker containers.
+In our application, we'll use the Java API to connect to a cluster of Ignite server nodes running in Docker containers.
 
 ```mermaid
 graph TD
@@ -173,7 +190,7 @@ graph TD
     end
     
     subgraph "Our Application"
-        Client[Java Thin Client]
+        Client[Java Client]
     end
     
     Client --> Node1
@@ -181,12 +198,12 @@ graph TD
     Client --> Node3
 ```
 
-> [!note]
-> Think of Ignite server nodes as database servers that work together to store data. The client is like a database connector in your application code. The thin client approach means your application only needs a lightweight connection to the cluster, not a full Ignite instance running inside your application.
+> [!tip]
+> Think of Ignite server nodes as database servers that work together to store data. The client is like a database connector in your application code.
 
 ## Setting Up Your Ignite Cluster
 
-To run the application, you need a local Ignite 3 cluster. Docker provides the simplest way to get started without complex installation procedures.
+To run the application, you will set up a local Ignite 3 cluster in Docker.
 
 ### Creating a Docker Compose File
 
@@ -238,11 +255,12 @@ configs:
 > [!note]
 > Docker Compose helps run multiple related containers together. This file defines three Ignite server nodes that will form our cluster. Each node gets 4GB of memory and exposes specific ports for communication. The `configs` section provides shared configuration to all nodes.
 
-This configuration creates a three-node Ignite cluster running in Docker containers. Each node is configured with:
+This Docker Compose file creates a three-node Ignite cluster running on your local host. Each node is configured with:
 
 - 4GB of memory allocation
 - Exposed HTTP and thin client ports
 - A shared configuration for node discovery
+- In memory storage (no data is persisted to disk)
 
 ### Starting the Ignite Cluster
 
@@ -305,74 +323,130 @@ Inside the CLI:
 >[!warning]
 > The initialization step is only performed once for a new cluster. If the command returns an error indicating the cluster is already initialized, you can proceed to the next step.
 
+```shell
+
+
+           #              ___                         __
+         ###             /   |   ____   ____ _ _____ / /_   ___
+     #  #####           / /| |  / __ \ / __ `// ___// __ \ / _ \
+   ###  ######         / ___ | / /_/ // /_/ // /__ / / / // ___/
+  #####  #######      /_/  |_|/ .___/ \__,_/ \___//_/ /_/ \___/
+  #######  ######            /_/
+    ########  ####        ____               _  __           _____
+   #  ########  ##       /  _/____ _ ____   (_)/ /_ ___     |__  /
+  ####  #######  #       / / / __ `// __ \ / // __// _ \     /_ <
+   #####  #####        _/ / / /_/ // / / // // /_ / ___/   ___/ /
+     ####  ##         /___/ \__, //_/ /_//_/ \__/ \___/   /____/
+       ##                  /____/
+
+                      Apache Ignite CLI version 3.0.0
+
+
+You appear to have not connected to any node yet. Do you want to connect to the default node http://localhost:10300? [Y/n] 
+Connected to http://localhost:10300
+The cluster is not initialized. Run cluster init command to initialize it.
+[node1]> cluster init --name=ignite3 --metastorage-group=node1,node2,node3
+Cluster was initialized successfully
+[node1]> 
+```
+
 > [!important]
 > **Checkpoint**: After running the initialization command, you should see a success message. If you see "Cluster initialized successfully" or a message indicating the cluster is already initialized, you can proceed to the next step.
 
 ## Creating the Ignite Connection Manager
 
-Now that our cluster is running, we need a reliable way to connect to it from our Java application. Let's create an `IgniteConnection` class that will handle connection management, including initial setup, retry policies, and proper resource cleanup.
+Now that our cluster is running, we need a reliable way to connect to it from our Java application. Let's create a `ConnectService` class that will handle connection management, including initial setup, retry policies, and proper resource cleanup.
 
-Create a new file named `IgniteConnection.java` in the `src/main/java/com/example/transit` directory:
+Create a new file named `ConnectService.java` in the `src/main/java/com/example/transit/service` directory.
+
+>[!tip]
+>Create a new file in IntelliJ IDEA:
+>
+>1. Right-click on the `java` folder in your project structure
+>2. Select "New" > "Package"
+>3. Type the full package path: `com.example.transit.service`
+>4. Click OK to create the package (IntelliJ will create all intermediate directories)
+>5. Right-click on the newly created `service` package 
+>6. Select "New" > "Java Class"
+>7. Enter the class name: `ConnectService`
+>8. Click OK
+>
+>The file will be created with the correct package declaration at the top:
+>```java
+>package com.example.transit.service;
+>
+>public class ConnectService {
+>    // Class implementation here
+>}
+>```
+
+Replace everything in your new file with this code:
 
 ```java
-package com.example.transit;
+package com.example.transit.service;
 
 import org.apache.ignite.client.IgniteClient;
 import org.apache.ignite.client.RetryReadPolicy;
 
 /**
- * Singleton class that manages the connection to the Ignite cluster.
+ * Service class that manages the connection to the Ignite cluster.
  * This class uses the Ignite 3 client API to establish and maintain
  * a connection to the cluster throughout our application's lifecycle.
+ * Implements AutoCloseable to support try-with-resources.
  */
-public class IgniteConnection {
-    private static IgniteClient igniteClient;
+public class ConnectService implements AutoCloseable {
+    private IgniteClient igniteClient;
 
     /**
-     * Gets a singleton instance of IgniteClient.
-     * The client connects to a local Ignite 3 cluster running on the default port.
+     * Constructor that initializes the Ignite client connection.
      *
-     * @return An initialized IgniteClient instance
      * @throws RuntimeException if the connection cannot be established
      */
-    public static synchronized IgniteClient getClient() {
-        if (igniteClient == null) {
-            try {
-                // Using the builder pattern introduced in Ignite 3
-                igniteClient = IgniteClient.builder()
-                        // Configure the addresses of all three Ignite server nodes
-                        // This provides redundancy and failover capabilities
-                        .addresses(
-                                "127.0.0.1:10800",  // Node 1
-                                "127.0.0.1:10801",  // Node 2
-                                "127.0.0.1:10802"   // Node 3
-                        )
-                        // Set connection timeout to 10 seconds
-                        .connectTimeout(10_000)
-                        // RetryReadPolicy allows read operations to be retried automatically on connection issues
-                        .retryPolicy(new RetryReadPolicy())
-                        // Build the client instance
-                        .build();
+    public ConnectService() {
+        try {
+            // Using the builder pattern introduced in Ignite 3
+            igniteClient = IgniteClient.builder()
+                    // Configure the addresses of all three Ignite server nodes
+                    // This provides redundancy and failover capabilities
+                    .addresses(
+                            "127.0.0.1:10800",  // Node 1
+                            "127.0.0.1:10801",  // Node 2
+                            "127.0.0.1:10802"   // Node 3
+                    )
+                    // Set connection timeout to 10 seconds
+                    .connectTimeout(10_000)
+                    // RetryReadPolicy allows read operations to be retried automatically on connection issues
+                    .retryPolicy(new RetryReadPolicy())
+                    // Build the client instance
+                    .build();
 
-                System.out.println("Successfully connected to Ignite cluster" + igniteClient.connections());
-            } catch (Exception e) {
-                System.err.println("Failed to connect to Ignite cluster: " + e.getMessage());
-                throw new RuntimeException("Ignite connection failure", e);
-            }
+            System.out.println("--- Successfully connected to Ignite cluster: " + igniteClient.connections());
+        } catch (Exception e) {
+            System.err.println("Failed to connect to Ignite cluster: " + e.getMessage());
+            throw new RuntimeException("Ignite connection failure", e);
         }
+    }
+
+    /**
+     * Gets the IgniteClient instance.
+     *
+     * @return An initialized IgniteClient instance
+     */
+    public IgniteClient getClient() {
         return igniteClient;
     }
 
     /**
      * Closes the connection to the Ignite cluster.
-     * Call this method when shutting down your application to release resources.
+     * This method is automatically called when used with try-with-resources.
      */
-    public static void close() {
+    @Override
+    public void close() {
         if (igniteClient != null) {
             try {
                 igniteClient.close();
                 igniteClient = null;
-                System.out.println("Ignite client connection closed");
+                System.out.println("--- Ignite client connection closed");
             } catch (Exception e) {
                 System.err.println("Error closing Ignite client: " + e.getMessage());
             }
@@ -392,87 +466,157 @@ This singleton class provides a central point for obtaining and managing the con
 - **Automatic retries**: The RetryReadPolicy helps maintain resilience during temporary network issues
 - **Proper resource cleanup**: The close method ensures resources are released when the application shuts down
 
-## Testing Your Connection
+## Logging Utility Class
 
-Let's create a test class to verify that your connection to the Ignite cluster works correctly.
+When developing in Java, logs can stream to the console, making it difficult to observe if your application is functioning properly. We will use a `LoggingUtil` class to suppress Java logging or enable it when we are interested in seeing the details.
 
-Create a file named `IgniteClusterTest.java`:
+Create `LoggingUtil`:
 
 ```java
-package com.example.transit;
+ppackage com.example.transit.util;
 
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
-import org.apache.ignite.client.IgniteClient;
-import org.apache.ignite.client.RetryLimitPolicy;
-import org.apache.ignite.network.ClusterNode;
 import org.slf4j.LoggerFactory;
+
+/**
+ * Utility class for configuring logging settings.
+ * Used to control log output during application execution.
+ */
+public class LoggingUtil {
+
+    /**
+     * Sets the logging level for root logger and specific loggers.
+     * Configures both SLF4J/Logback loggers and Java Util Logging (JUL) loggers used by Ignite.
+     *
+     * @param level String representation of the log level ("OFF", "ERROR", "WARN", "INFO", "DEBUG", "TRACE")
+     * @throws IllegalArgumentException if an invalid log level is provided
+     */
+    public static void setLogs(String level) {
+        // Convert string to Level enum
+        Level logLevel;
+        try {
+            logLevel = Level.valueOf(level);
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("Invalid log level: " + level +
+                    ". Valid options are: OFF, ERROR, WARN, INFO, DEBUG, TRACE");
+        }
+
+        // Get the Logback root logger and set it to the specified level
+        Logger root = (Logger) LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME);
+        root.setLevel(logLevel);
+
+        // Specifically set Netty logger (used by Ignite for networking)
+        Logger nettyLogger = (Logger) LoggerFactory.getLogger("io.netty");
+        nettyLogger.setLevel(logLevel);
+
+        // Ignite logger
+        Logger igniteLogger = (Logger) LoggerFactory.getLogger("org.apache.ignite");
+        igniteLogger.setLevel(logLevel);
+
+        // Set specific Ignite internal logger
+        Logger igniteInternalLogger = (Logger) LoggerFactory.getLogger("org.apache.ignite.internal");
+        igniteInternalLogger.setLevel(logLevel);
+
+        // Set specific Ignite logger impl
+        Logger igniteLoggerImpl = (Logger) LoggerFactory.getLogger("org.apache.ignite.internal.logger");
+        igniteLoggerImpl.setLevel(logLevel);
+
+        // Configure Java Util Logging (JUL) loggers used by some Ignite components
+        java.util.logging.Level julLevel = convertToJulLevel(level);
+
+        // Set JUL root logger
+        java.util.logging.Logger.getLogger("").setLevel(julLevel);
+
+        // Set specific JUL loggers for Ignite
+        java.util.logging.Logger.getLogger("org.apache.ignite").setLevel(julLevel);
+        java.util.logging.Logger.getLogger("org.apache.ignite.internal").setLevel(julLevel);
+        java.util.logging.Logger.getLogger("org.apache.ignite.internal.logger").setLevel(julLevel);
+    }
+
+    /**
+     * Converts a Logback log level string to Java Util Logging Level.
+     *
+     * @param level String representation of the log level
+     * @return Corresponding JUL Level
+     */
+    private static java.util.logging.Level convertToJulLevel(String level) {
+        switch (level.toUpperCase()) {
+            case "OFF": return java.util.logging.Level.OFF;
+            case "ERROR": return java.util.logging.Level.SEVERE;
+            case "WARN": return java.util.logging.Level.WARNING;
+            case "INFO": return java.util.logging.Level.INFO;
+            case "DEBUG": return java.util.logging.Level.FINE;
+            case "TRACE": return java.util.logging.Level.FINEST;
+            default:
+                return java.util.logging.Level.INFO; // Default fallback
+        }
+    }
+}
+```
+
+## Testing Your Connection
+
+Let's create an example class `ConnectExample` to verify that your connection to the Ignite cluster works correctly.
+
+>[!tip]
+>To create the `ConnectExample.java` file:
+>
+>1. In IntelliJ IDEA, right-click on the `java` folder in your project structure
+>2. Select "New" > "Package"
+>3. Type the full package path: `com.example.transit.examples`
+>4. Click OK to create the package (IntelliJ will create all intermediate directories)
+>5. Right-click on the newly created `examples` package
+>6. Select "New" > "Java Class"
+>7. Enter the class name: `ConnectExample`
+>8. Click OK
+
+Replace everything in your new file with this code:
+
+```java
+package com.example.transit.examples;
+
+import com.example.transit.service.ConnectService;
+import com.example.transit.util.LoggingUtil;
+import org.apache.ignite.client.IgniteClient;
+import org.apache.ignite.network.ClusterNode;
+import org.apache.ignite.client.RetryLimitPolicy;
 
 import java.util.List;
 import java.util.stream.Collectors;
 
 /**
- * Test class for verifying connection to an Ignite 3 cluster.
+ * Example class for verifying connection to an Ignite 3 cluster.
  * This class demonstrates how to connect to a cluster and retrieve information.
  */
-public class IgniteClusterTest {
-
+public class ConnectExample {
     public static void main(String[] args) {
-        // Configure logging to be quiet before any other operations
-        configureLogging();
+        // Configure logging to suppress unnecessary output
+        LoggingUtil.setLogs("OFF");
 
-        // Connect to Ignite cluster
-        IgniteClient client = null;
+        System.out.println("=== Connecting to Ignite cluster...");
 
-        try {
-            // Get client connection
-            System.out.println("--- Connecting to Ignite cluster...");
-            client = IgniteConnection.getClient();
-
-            // Test the connection by retrieving cluster nodes
-            System.out.println("Testing connection by retrieving cluster nodes...");
-            testConnection(client);
-
-            System.out.println("Ignite cluster operations completed successfully");
-
+        // Use try-with-resources to automatically handle connection cleanup
+        try (ConnectService connectionService = new ConnectService()) {
+            IgniteClient client = connectionService.getClient();
+            clusterOverview(client);
         } catch (Exception e) {
-            System.err.println("Error during Ignite operations: " + e.getMessage());
+            System.err.println("Error during Ignite connection: " + e.getMessage());
             e.printStackTrace();
-        } finally {
-            // Always properly disconnect from the cluster
-            if (client != null) {
-                System.out.println("--- Disconnecting from Ignite cluster...");
-                IgniteConnection.close();
-            }
         }
+
+        System.out.println("=== Disconnected from Ignite cluster");
     }
 
     /**
-     * Configure logging to completely suppress all log messages.
-     * This is useful for tests to keep the console output to a minimum.
-     */
-    private static void configureLogging() {
-        // Get the Logback root logger and set it to OFF
-        Logger root = (Logger) LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME);
-        root.setLevel(Level.OFF);
-
-        // Specifically set Netty logger to OFF as well
-        Logger nettyLogger = (Logger) LoggerFactory.getLogger("io.netty");
-        nettyLogger.setLevel(Level.OFF);
-    }
-
-    /**
-     * Tests the connection to the Ignite cluster and displays useful information
+     * Connects to an Ignite cluster and displays useful information
      *
      * @param client The IgniteClient instance
      */
-    private static void testConnection(IgniteClient client) {
+    private static void clusterOverview(IgniteClient client) {
         System.out.println("\n========== IGNITE CLUSTER OVERVIEW ==========");
 
-        // Get list of active connections (cluster nodes)
-        List<ClusterNode> clusterNnodes = client.connections();
-
-        // 1. Cluster Topology Information
+        // Cluster Topology Information
         System.out.println("\nCLUSTER TOPOLOGY:");
         try {
             // Get complete cluster topology
@@ -483,14 +627,12 @@ public class IgniteClusterTest {
             // Display simple list of nodes
             for (int i = 0; i < allNodes.size(); i++) {
                 ClusterNode node = allNodes.get(i);
-                System.out.println("    - Node " + (i + 1) + ": " + node.name() +
-                        " (ID: " + node.id() + ", Address: " + node.address() + ")");
+                System.out.println("    - Node " + (i + 1) + ": " + node.name() + " (ID: " + node.id() + ", Address: " + node.address() + ")");
             }
 
             // Also show which node(s) the client is currently connected to
             List<ClusterNode> connectedNodes = client.connections();
-            System.out.println("  • Currently connected to: " +
-                    (connectedNodes.isEmpty() ? "None" : connectedNodes.get(0).name()));
+            System.out.println("  • Currently connected to: " + (connectedNodes.isEmpty() ? "None" : connectedNodes.get(0).name()));
         } catch (Exception e) {
             System.out.println("  • Could not retrieve full cluster topology: " + e.getMessage());
 
@@ -499,24 +641,19 @@ public class IgniteClusterTest {
             System.out.println("  • Connected nodes: " + currentNodes.size());
             for (int i = 0; i < currentNodes.size(); i++) {
                 ClusterNode node = currentNodes.get(i);
-                System.out.println("    - Node " + (i + 1) + ": " + node.name() +
-                        " (ID: " + node.id() + ", Address: " + node.address() + ")");
+                System.out.println("    - Node " + (i + 1) + ": " + node.name() + " (ID: " + node.id() + ", Address: " + node.address() + ")");
             }
         }
 
-        // 2. Connection Details
+        // Connection Details
         System.out.println("\nCONNECTION DETAILS:");
         System.out.println("  • Connection timeout: " + client.configuration().connectTimeout() + "ms");
-        System.out.println("  • Operation timeout: " +
-                (client.configuration().operationTimeout() > 0 ?
-                        client.configuration().operationTimeout() + "ms" : "No timeout (unlimited)"));
+        System.out.println("  • Operation timeout: " + (client.configuration().operationTimeout() > 0 ? client.configuration().operationTimeout() + "ms" : "No timeout (unlimited)"));
         System.out.println("  • Heartbeat interval: " + client.configuration().heartbeatInterval() + "ms");
 
-        // 3. Available Resources - Tables
+        // Available Resources - Tables
         try {
-            List<String> tables = client.tables().tables().stream()
-                    .map(table -> table.name())
-                    .collect(Collectors.toList());
+            List<String> tables = client.tables().tables().stream().map(table -> table.name()).collect(Collectors.toList());
 
             System.out.println("\nAVAILABLE TABLES:");
             if (tables.isEmpty()) {
@@ -527,8 +664,7 @@ public class IgniteClusterTest {
                 for (String tableName : tables) {
                     System.out.println("    - " + tableName);
                 }
-                System.out.println("  • Tip: Access a table with client.tables().table(\"" +
-                        (tables.isEmpty() ? "table_name" : tables.get(0)) + "\")");
+                System.out.println("  • Tip: Access a table with client.tables().table(\"" + (tables.isEmpty() ? "table_name" : tables.get(0)) + "\")");
             }
         } catch (Exception e) {
             System.out.println("\nAVAILABLE TABLES:");
@@ -536,7 +672,7 @@ public class IgniteClusterTest {
             System.out.println("  • Tip: You may need additional permissions to view tables");
         }
 
-        // 4. Client Retry Policy
+        // Client Retry Policy
         System.out.println("\nRETRY POLICY:");
         if (client.configuration().retryPolicy() != null) {
             System.out.println("  • Type: " + client.configuration().retryPolicy().getClass().getSimpleName());
@@ -550,7 +686,7 @@ public class IgniteClusterTest {
             System.out.println("  • Tip: Consider adding a RetryReadPolicy for better resilience");
         }
 
-        // 5. Security Status
+        // Security Status
         System.out.println("\nSECURITY STATUS:");
         if (client.configuration().authenticator() != null) {
             System.out.println("  • Authentication: Enabled");
@@ -566,28 +702,63 @@ public class IgniteClusterTest {
             System.out.println("  • Tip: Consider enabling SSL for secure communication");
         }
 
-        System.out.println("\nCONNECTION SUCCESSFUL! You are now ready to use Ignite.");
-        System.out.println("========== END OF CLUSTER OVERVIEW ==========\n");
+        System.out.println("\n========== END OF CLUSTER OVERVIEW ==========\n");
     }
 }
 ```
 
 > [!note]
-> This test class demonstrates how to connect to the Ignite cluster and gather basic information about it. The `testConnection` method explores different aspects of the cluster, like how many nodes are running and what configuration is being used.
+> This example class demonstrates how to connect to the Ignite cluster and gather basic information about it. The `testConnection` method explores different aspects of the cluster, like how many nodes are running and what configuration is being used.
 
-### Running the Connection Test
+### Running the Connection Example
 
-To run the test:
+To run the example:
 
 1. Compile your project: `mvn compile`
-2. Execute the test class: `mvn exec:java -Dexec.mainClass="com.example.transit.IgniteClusterTest"`
+2. Execute the example class: `mvn exec:java -Dexec.mainClass="com.example.transit.examples.ConnectExample"`
 
 If everything is set up correctly, you should see output confirming the connection to your Ignite cluster, along with details about the connected nodes, client configuration, and available resources.
 
-**Expected Output**: You should see a successful connection message and information about the three nodes in your cluster. The output should confirm that you're connected to at least one of the nodes.
+```text
+=== Connecting to Ignite cluster...
+--- Successfully connected to Ignite cluster: [ClientClusterNode [id=269b35be-01cb-4013-9333-add1ef38e05a, name=node3, address=127.0.0.1:10802, nodeMetadata=null]]
+
+========== IGNITE CLUSTER OVERVIEW ==========
+
+CLUSTER TOPOLOGY:
+  • Total cluster nodes: 3
+    - Node 1: node3 (ID: 269b35be-01cb-4013-9333-add1ef38e05a, Address: 172.18.0.3:3344)
+    - Node 2: node1 (ID: f6afae87-bda9-4bc1-bd5f-8f89e35e72b4, Address: 172.18.0.2:3344)
+    - Node 3: node2 (ID: 8f2dc295-2db1-4d5c-bcae-046ca32984f9, Address: 172.18.0.4:3344)
+  • Currently connected to: node2
+
+CONNECTION DETAILS:
+  • Connection timeout: 10000ms
+  • Operation timeout: No timeout (unlimited)
+  • Heartbeat interval: 30000ms
+
+AVAILABLE TABLES:
+  • No tables found. Your cluster is ready for you to create tables.
+  • Tip: Use client.tables().createTable(...) to create your first table.
+
+RETRY POLICY:
+  • Type: RetryReadPolicy
+  • Retry limit: 16
+  • Tip: The retry policy helps maintain connection during network issues
+
+SECURITY STATUS:
+  • Authentication: Not configured
+  • SSL/TLS: Disabled
+  • Tip: Consider enabling SSL for secure communication
+
+========== END OF CLUSTER OVERVIEW ==========
+
+--- Ignite client connection closed
+=== Disconnected from Ignite cluster
+```
 
 > [!important]
-> **Checkpoint #4**: After running the connection test, you should see a successful connection message and information about all three nodes in your cluster. If you see "CONNECTION SUCCESSFUL!" near the end of the output, your connection is working properly.
+> **Checkpoint**: After running the connection example, you should see a successful connection message and information about all three nodes in your cluster.
 
 ## Next Steps
 
@@ -596,7 +767,7 @@ Congratulations! You've now set up a complete development environment for our tr
 - A three-node Ignite cluster running in Docker containers
 - A Maven project with all necessary dependencies
 - A robust connection management class
-- A test application that verifies connectivity
+- An example application that verifies connectivity
 
 This foundation gives us everything we need to start building our transit monitoring application. In the next module, we'll explore the GTFS data format and design our schema for storing transit data in Ignite.
 
@@ -604,7 +775,7 @@ This foundation gives us everything we need to start building our transit monito
 > **Final Module Checkpoint**: Before proceeding to the next module, ensure:
 >
 > - Your Ignite cluster is running (all three containers in "running" state)
-> - The connection test completes successfully
+> - The connection example completes successfully
 > - You can compile the project without errors
 > - You understand the basic client-server architecture of Ignite 3
 
