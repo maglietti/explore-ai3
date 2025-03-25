@@ -1,6 +1,6 @@
 # Understanding GTFS Data and Creating the Transit Schema
 
-In this module, you'll learn about the General Transit Feed Specification (GTFS) data format and how to model this data within Apache Ignite. You'll create a schema that enables efficient storage and querying of transit vehicle positions.
+In this module, you'll learn about the General Transit Feed Specification (GTFS) data format and how to model the data within Apache Ignite. You'll create a schema that enables efficient storage and querying of transit vehicle positions.
 
 ## The GTFS Format: Transit Data in Motion
 
@@ -69,41 +69,14 @@ For our application, we'll focus on the most essential fields: vehicle ID, route
 > - What data is available in a vehicle position record
 > - Which fields we'll use in our application and why
 
-## Designing an Ignite Schema: Data Modeling Considerations
-
-Before writing the schema creation code, let's consider the requirements for our transit data storage:
-
-### 1. Time-Series Nature
-
-Vehicle positions represent a time series – sequential data points collected at regular intervals. Our schema must efficiently handle:
-
-- Regular inserts of new position data
-- Queries for the most recent position of each vehicle
-- Historical queries over specific time ranges
-
-### 2. Query Patterns
-
-Our application will need to support several types of queries:
-
-- Find all vehicles on a specific route
-- Find the latest position of a specific vehicle
-- Find all vehicles in a geographic area
-- Find vehicles that haven't moved for a period of time
-
-### 3. Scaling Considerations
-
-As our transit system grows, the data volume will increase in two dimensions:
-
-- More vehicles sending position updates
-- More historical data accumulating over time
-
-With these considerations in mind, let's design our schema.
-
 ## Creating the Ignite Schema: Using the Catalog API
 
 Apache Ignite 3 provides a Catalog API for defining tables and their schemas in a type-safe manner. We'll use this API to create our vehicle positions table with the appropriate structure and indexing.
 
-Let's create a `SchemaSetupService` class to handle the table creation:
+>[!caution]
+>It is up to you to create files in the correct folder inside your project in order for the application to function.
+
+Let's create a `SchemaService` class to handle the table creation:
 
 ```java
 package com.example.transit.service;
@@ -115,79 +88,116 @@ import org.apache.ignite.catalog.definitions.TableDefinition;
 import org.apache.ignite.table.Table;
 
 /**
- * Creates and maintains the database schema for the transit monitoring system.
- * This class handles the creation of tables using Ignite's Catalog API.
+ * Service responsible for creating and maintaining the database schema.
+ * This class provides methods to set up tables for the transit monitoring system
+ * using Apache Ignite 3 Catalog API.
  */
-public class SchemaSetupService {
-    private final IgniteConnectionService connectionService;
+public class SchemaService {
+    private static final String VEHICLE_POSITIONS_TABLE = "vehicle_positions";
+    private final ConnectService connectionService;
 
     /**
-     * Constructor that takes a connection service.
+     * Creates a new schema setup service using the provided connection service.
      *
-     * @param connectionService The service that provides Ignite client connections
+     * @param connectionService Service that provides Ignite client connections
      */
-    public SchemaSetupService(IgniteConnectionService connectionService) {
+    public SchemaService(ConnectService connectionService) {
         this.connectionService = connectionService;
     }
 
     /**
      * Creates the database schema for storing vehicle position data.
-     * This method is idempotent and can be safely run multiple times.
+     * This method is idempotent and can be safely called multiple times.
      *
-     * @return true if the schema setup was successful
+     * @return true if the schema setup was successful, false otherwise
      */
     public boolean createSchema() {
         try {
-            // Get the client connection from the connection service
             IgniteClient client = connectionService.getClient();
 
-            // Check if table already exists
-            boolean tableExists = false;
-            try {
-                // Try to directly get the table
-                var table = client.tables().table("vehicle_positions");
-                if (table != null) {
-                    tableExists = true;
-                    System.out.println(">>> Vehicle positions table already exists.");
-                }
-            } catch (Exception e) {
-                System.out.println("+++ Table does not exist: " + e.getMessage());
-                // Continue with table creation
+            if (tableExists(client, VEHICLE_POSITIONS_TABLE)) {
+                System.out.println(">>> Vehicle positions table already exists.");
+                return true;
             }
 
-            if (!tableExists) {
-                // Define and create the table
-                TableDefinition tableDefinition = TableDefinition.builder("vehicle_positions")
-                        .ifNotExists()
-                        .columns(
-                                ColumnDefinition.column("vehicle_id", ColumnType.VARCHAR),
-                                ColumnDefinition.column("route_id", ColumnType.VARCHAR),
-                                ColumnDefinition.column("latitude", ColumnType.DOUBLE),
-                                ColumnDefinition.column("longitude", ColumnType.DOUBLE),
-                                ColumnDefinition.column("time_stamp", ColumnType.TIMESTAMP),
-                                ColumnDefinition.column("current_status", ColumnType.VARCHAR)
-                        )
-                        // Define a composite primary key on vehicle_id and time_stamp
-                        // This enables efficient queries for a vehicle's history
-                        .primaryKey("vehicle_id", "time_stamp")
-                        .build();
-
-                System.out.println("=== Creating table: " + tableDefinition);
-                Table table = client.catalog().createTable(tableDefinition);
-                System.out.println("+++ Table created successfully: " + table.name());
-            }
-
-            return true;
+            return createVehiclePositionsTable(client);
         } catch (Exception e) {
-            System.err.println("Failed to create schema: " + e.getMessage());
-            Throwable cause = e;
-            while (cause != null) {
-                System.err.println("  Caused by: " + cause.getClass().getName() + ": " + cause.getMessage());
-                cause = cause.getCause();
-            }
-            e.printStackTrace();
+            logError("Failed to create schema", e);
             return false;
         }
+    }
+
+    /**
+     * Checks if a table exists in the Ignite catalog.
+     *
+     * @param client Ignite client
+     * @param tableName Name of the table to check
+     * @return true if the table exists, false otherwise
+     */
+    private boolean tableExists(IgniteClient client, String tableName) {
+        try {
+            return client.tables().table(tableName) != null;
+        } catch (Exception e) {
+            System.out.println("+++ Table does not exist: " + e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Creates the vehicle positions table with appropriate columns and primary key.
+     *
+     * @param client Ignite client
+     * @return true if creation was successful, false otherwise
+     */
+    private boolean createVehiclePositionsTable(IgniteClient client) {
+        try {
+            TableDefinition tableDefinition = buildVehiclePositionsTableDefinition();
+            System.out.println("--- Creating table: " + tableDefinition);
+
+            Table table = client.catalog().createTable(tableDefinition);
+            System.out.println("+++ Table created successfully: " + table.name());
+            return true;
+        } catch (Exception e) {
+            logError("Failed to create vehicle positions table", e);
+            return false;
+        }
+    }
+
+    /**
+     * Builds the table definition for vehicle positions.
+     *
+     * @return TableDefinition for vehicle positions
+     */
+    private TableDefinition buildVehiclePositionsTableDefinition() {
+        return TableDefinition.builder(VEHICLE_POSITIONS_TABLE)
+                .ifNotExists()
+                .columns(
+                        ColumnDefinition.column("vehicle_id", ColumnType.VARCHAR),
+                        ColumnDefinition.column("route_id", ColumnType.VARCHAR),
+                        ColumnDefinition.column("latitude", ColumnType.DOUBLE),
+                        ColumnDefinition.column("longitude", ColumnType.DOUBLE),
+                        ColumnDefinition.column("time_stamp", ColumnType.TIMESTAMP),
+                        ColumnDefinition.column("current_status", ColumnType.VARCHAR))
+                // Define a composite primary key on vehicle_id and time_stamp
+                // This enables efficient queries for a vehicle's history
+                .primaryKey("vehicle_id", "time_stamp")
+                .build();
+    }
+
+    /**
+     * Logs an error message along with exception details.
+     *
+     * @param message Error message
+     * @param e Exception that occurred
+     */
+    private void logError(String message, Exception e) {
+        System.err.println(message + ": " + e.getMessage());
+        Throwable cause = e;
+        while (cause != null) {
+            System.err.println("  Caused by: " + cause.getClass().getName() + ": " + cause.getMessage());
+            cause = cause.getCause();
+        }
+        e.printStackTrace();
     }
 }
 ```
@@ -254,8 +264,8 @@ Create a file named `SchemaSetupExample.java`:
 ```java
 package com.example.transit.examples;
 
-import com.example.transit.service.IgniteConnectionService;
-import com.example.transit.service.SchemaSetupService;
+import com.example.transit.service.ConnectService;
+import com.example.transit.service.SchemaService;
 import com.example.transit.util.LoggingUtil;
 import org.apache.ignite.client.IgniteClient;
 
@@ -266,9 +276,15 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Example class to verify database connectivity and schema creation.
- * This class demonstrates how to connect to an Ignite cluster, create a table
- * and interact with it using SQL operations.
+ * Example demonstrating database connectivity and schema operations.
+ *
+ * This class shows how to:
+ * 1. Connect to an Apache Ignite cluster
+ * 2. Create a table for vehicle position data
+ * 3. Perform basic CRUD operations to verify functionality
+ *
+ * Run this example after initializing an Ignite cluster to verify
+ * that your application can interact with the database correctly.
  */
 public class SchemaSetupExample {
 
@@ -276,27 +292,28 @@ public class SchemaSetupExample {
 
     /**
      * Main method to run the schema setup example.
+     *
+     * @param args Command line arguments (not used)
      */
     public static void main(String[] args) {
         // Configure logging to suppress unnecessary output
         LoggingUtil.setLogs("OFF");
 
         System.out.println("=== Table Creation Example ===");
-
         System.out.println("=== Connect to Ignite cluster");
-        try (IgniteConnectionService connectionService = new IgniteConnectionService()) {
+
+        try (ConnectService connectionService = new ConnectService()) {
             IgniteClient client = connectionService.getClient();
 
             // Create schema and verify with test data
-            // Pass the connectionService to the SchemaSetupService constructor
             System.out.println("=== Create vehicle positions table");
-            SchemaSetupService schemaSetup = new SchemaSetupService(connectionService);
+            SchemaService schemaSetup = new SchemaService(connectionService);
+
             if (schemaSetup.createSchema()) {
                 verifyTableWithTestData(client);
             } else {
                 System.err.println("Table setup failed.");
             }
-
         } catch (Exception e) {
             System.err.println("Table setup failed: " + e.getMessage());
             e.printStackTrace();
@@ -306,7 +323,7 @@ public class SchemaSetupExample {
     }
 
     /**
-     * Verify table creation and operations with test data.
+     * Performs a sequence of operations to verify table functionality.
      *
      * @param client Ignite client connection
      */
@@ -314,17 +331,13 @@ public class SchemaSetupExample {
         System.out.println("=== Table operations");
 
         try {
-            // Verify the table exists by querying for its schema
             verifyTableExists(client);
 
-            // Create and insert test data
             Map<String, Object> testData = createTestData();
             insertTestData(client, testData);
 
-            // Query, verify, and clean up
             queryTestData(client, testData);
             deleteAndVerify(client, testData);
-
         } catch (Exception e) {
             System.err.println("Table operations failed: " + e.getMessage());
             e.printStackTrace();
@@ -332,13 +345,12 @@ public class SchemaSetupExample {
     }
 
     /**
-     * Verify that the table exists in the schema.
+     * Verifies that the vehicle positions table exists in the schema.
      *
      * @param client Ignite client connection
      */
     private static void verifyTableExists(IgniteClient client) {
         try {
-            // Check if the table exists using the catalog API
             var table = client.tables().table(VEHICLE_TABLE);
             if (table != null) {
                 System.out.println("+++ Table exists: " + table.name());
@@ -351,9 +363,9 @@ public class SchemaSetupExample {
     }
 
     /**
-     * Create a map with test vehicle data.
+     * Creates a map with test vehicle data.
      *
-     * @return Map containing test vehicle data
+     * @return Map containing test vehicle position data
      */
     private static Map<String, Object> createTestData() {
         long currentTime = System.currentTimeMillis();
@@ -369,10 +381,10 @@ public class SchemaSetupExample {
     }
 
     /**
-     * Insert test vehicle data using SQL.
+     * Inserts test vehicle data into the database using SQL.
      *
      * @param client Ignite client connection
-     * @param testData Map containing test data
+     * @param testData Map containing the test data
      */
     private static void insertTestData(IgniteClient client, Map<String, Object> testData) {
         // Convert timestamp to LocalDateTime expected by Ignite
@@ -381,7 +393,7 @@ public class SchemaSetupExample {
                 ZoneId.systemDefault()
         );
 
-        // Insert test data using SQL
+        // SQL parameters are provided in the order they appear in the query
         String insertSql = "INSERT INTO vehicle_positions " +
                 "(vehicle_id, route_id, latitude, longitude, time_stamp, current_status) " +
                 "VALUES (?, ?, ?, ?, ?, ?)";
@@ -398,7 +410,7 @@ public class SchemaSetupExample {
     }
 
     /**
-     * Query the inserted test data and display results.
+     * Queries the inserted test data and displays results.
      *
      * @param client Ignite client connection
      * @param testData Map containing the original test data
@@ -436,10 +448,10 @@ public class SchemaSetupExample {
     }
 
     /**
-     * Delete test data and verify it was removed.
+     * Deletes test data and verifies it was removed.
      *
      * @param client Ignite client connection
-     * @param testData Map containing the test data
+     * @param testData Map containing the test data to delete
      */
     private static void deleteAndVerify(IgniteClient client, Map<String, Object> testData) {
         // Delete the test record using SQL
@@ -447,7 +459,7 @@ public class SchemaSetupExample {
         client.sql().execute(null, deleteSql, testData.get("vehicle_id"));
         System.out.println("+++ Test record deleted successfully.");
 
-        // Verify deletion
+        // Verify deletion by counting remaining matching records
         long count = 0;
         String verifySql = "SELECT COUNT(*) as cnt FROM vehicle_positions WHERE vehicle_id = ?";
 
@@ -461,7 +473,7 @@ public class SchemaSetupExample {
         if (count == 0) {
             System.out.println("+++ Deletion verification successful.");
         } else {
-            System.out.println("Warning: Test data deletion may have failed.");
+            System.err.println("Warning: Test data deletion may have failed.");
         }
     }
 }
@@ -470,70 +482,12 @@ public class SchemaSetupExample {
 This example class performs a complete cycle of operations:
 
 1. Connects to the Ignite cluster
-2. Creates the schema using our `SchemaSetup` class
+2. Creates the schema using our `SchemaSetupExample` class
 3. Inserts a test vehicle position record
 4. Queries the record back to verify it was stored correctly
 5. Deletes the test record
 6. Verifies the deletion was successful
 7. Cleans up resources
-
-> [!note]
-> Notice the conversion between Java's `Instant` and SQL's `TIMESTAMP` (represented as `LocalDateTime` in Java). This conversion is necessary because Ignite's JDBC driver expects temporal data in `LocalDateTime` format rather than as epoch milliseconds.
-
-## The Architecture Behind the Schema
-
-Our schema design follows several important principles that enable effective real-time transit monitoring while leveraging Apache Ignite 3's distributed architecture:
-
-### Historical Tracking with Composite Primary Key
-
-By using a composite primary key of `vehicle_id` and `time_stamp`, we can:
-
-1. **Track complete vehicle histories**: Store multiple positions for each vehicle over time
-2. **Efficiently find specific positions**: Quickly locate a vehicle's position at a particular time
-3. **Enable time-series analysis**: Analyze movement patterns and service performance over time
-
-```mermaid
-graph TD
-    VP[Vehicle Position]
-    VP -->|Primary Key| VPID[vehicle_id + time_stamp]
-    VP -->|Track| History[Historical Path]
-    VP -->|Query| Latest[Latest Position]
-    VP -->|Analyze| TimeSeries[Time Series Data]
-```
-
-### Data Colocation With Ignite 3
-
-One of Apache Ignite 3's key features is data colocation, which places related data on the same cluster node. By using `vehicle_id` as the first part of our composite primary key, we enable efficient colocation of all position records for a single vehicle:
-
-```mermaid
-graph TB
-    subgraph "Ignite Cluster"
-        subgraph "Node 1"
-            V1[Vehicle 1001 Records]
-            V2[Vehicle 1002 Records]
-        end
-        subgraph "Node 2"
-            V3[Vehicle 1003 Records]
-            V4[Vehicle 1004 Records]
-        end
-        subgraph "Node 3"
-            V5[Vehicle 1005 Records]
-            V6[Vehicle 1006 Records]
-        end
-    end
-```
-
-This colocation brings several significant benefits:
-
-1. **Reduced network overhead**: When querying a vehicle's history, all data can be processed on a single node
-2. **Faster aggregations**: Calculating metrics like average speed or total distance becomes more efficient
-3. **Improved locality**: Data that's frequently accessed together stays together
-4. **Better scaling**: As the fleet grows, new vehicles' data distributes evenly across the cluster
-
-For example, when tracking a specific vehicle's path over time, Ignite can execute the query entirely on the node containing that vehicle's data, avoiding costly network transfers between nodes.
-
-> [!note]
-> The first part of a composite primary key (in our case, `vehicle_id`) is used as the affinity key by default in Ignite. This means data with the same vehicle ID will be stored on the same node, optimizing queries that search for a specific vehicle's history.
 
 ## Executing the Schema Example
 
@@ -545,7 +499,24 @@ mvn compile exec:java -Dexec.mainClass="com.example.transit.examples.SchemaSetup
 
 When executed successfully, you'll see output confirming the schema creation, record insertion, query, and deletion operations. This validates that your Ignite cluster is correctly configured for storing transit data.
 
-> **Expected Output**: You should see successful connection, table creation, record insertion, querying, and deletion messages. The test should complete with "Test completed, resources cleaned up."
+```text
+=== Table Creation Example ===
+=== Connect to Ignite cluster
+--- Successfully connected to Ignite cluster: [ClientClusterNode [id=269b35be-01cb-4013-9333-add1ef38e05a, name=node3, address=127.0.0.1:10802, nodeMetadata=null]]
+=== Create vehicle positions table
+--- Creating table: org.apache.ignite.catalog.definitions.TableDefinition@fce85978
++++ Table created successfully: VEHICLE_POSITIONS
+=== Table operations
++++ Table exists: VEHICLE_POSITIONS
++++ Test record inserted successfully: {route_id=test-route-100, latitude=47.6062, current_status=STOPPED, vehicle_id=test-vehicle-1, longitude=-122.3321, timestamp=1742938391111}
++++ Found test record: {vehicle_id=test-vehicle-1, route_id=test-route-100, timestamp=1742938391111, latitude=47.6062, current_status=STOPPED, longitude=-122.3321}
++++ Retrieved 1 vehicle position records
++++ Test record deleted successfully.
++++ Records remaining after delete: 0
++++ Deletion verification successful.
+--- Ignite client connection closed
+=== Table operations completed
+```
 
 > [!important]
 > **Checkpoint**: After running the schema example:
@@ -553,17 +524,6 @@ When executed successfully, you'll see output confirming the schema creation, re
 > - Verify all operations (create, insert, query, delete) completed successfully
 > - Check that no exceptions were thrown during the test
 > - Ensure the connection was properly closed at the end
-
-## Common Data Modeling Patterns for Time-Series Data
-
-Our transit monitoring application follows common patterns for modeling time-series data in distributed databases:
-
-1. **Composite Keys**: Using a composite key of entity ID + timestamp creates a natural order for time-series data
-2. **Column Families**: Grouping related data fields together (vehicle information, location, status)
-3. **Data Colocation**: Ensuring related time-series points are stored together
-4. **Time-Based Partitioning**: As data grows, it can be partitioned by time ranges
-
-These patterns apply beyond transit monitoring to many time-series applications, including IoT monitoring, financial trading data, and performance metrics.
 
 ## Next Steps
 
