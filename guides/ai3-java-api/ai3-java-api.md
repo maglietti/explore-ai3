@@ -1,28 +1,34 @@
 # Getting Started with Apache Ignite 3 Using Java API
 
-This guide walks you through creating a Java application that connects to an Apache Ignite 3 cluster, demonstrating how to use Ignite's Java API to work with data.
+This guide walks you through creating a Java application that connects to an Apache Ignite 3 cluster, demonstrating key patterns for working with data using Ignite's Java API.
 
 ## Prerequisites
 
 * JDK 17 or later
-* IntelliJ IDEA
+* Maven
 * Docker and Docker Compose
 
-## Setting Up Your Java Project in IntelliJ IDEA
+## Setting Up Your Java Project
 
-### Create a New Java Project
+### Create a Maven Project
 
-* Open IntelliJ IDEA and select "New Project"
-* Choose "Java" as the project type
-* Select JDK 17 (or later) for your project SDK
-* Name your project (e.g., "ignite3-java-demo")
-* Click "Create"
+First, create a simple Maven project structure:
 
-![](./images/new-project.png)
+```
+ignite3-java-demo/
+├── pom.xml
+├── docker-compose.yml
+└── src/
+    └── main/
+        └── java/
+            └── com/
+                └── example/
+                    └── Main.java
+```
 
 ### Configure Maven Dependencies
 
-* Open the generated `pom.xml` file and add the following:
+Edit your `pom.xml` file to include the Ignite client dependency:
 
 ```xml
     <dependencies>
@@ -35,36 +41,12 @@ This guide walks you through creating a Java application that connects to an Apa
     </dependencies>
 ```
 
-* Refresh Maven to download the dependencies
+## Setting Up an Ignite 3 Cluster
 
-![](./images/project-pom.png)
-
-## Setting Up a Docker Compose File for Ignite 3
-
-Now let's create a Docker Compose file inside our project to set up a local three-node Ignite 3 cluster:
-
-* Create a file named `docker-compose.yml` in the root directory of your project
-* Add the following content:
+Create a Docker Compose file to run a three-node Ignite cluster:
 
 ```yaml
-# Docker Compose file for running an Apache Ignite 3 cluster.  
-#  
-# Usage:  
-# - To start only the Ignite nodes (default behavior):  
-#     docker compose up  
-#  
-# - To start the Ignite nodes along with the optional cloud-connector:  
-#     docker compose --profile cloud-connector up  
-#  
-# The cloud-connector service is disabled by default and will only start if the "cloud-connector" profile is specified.  
-#  
-# - To start the CLI:  
-#     docker run --rm -it --network=host -e LANG=C.UTF-8 -e LC_ALL=C.UTF-8 apacheignite/ignite:3.0.0 cli  
-#  
-# - To initialize the cluster  
-#     cluster init --name=ignite3 --metastorage-group=node1,node2,node3  
-#  
-  
+# docker-compose.yml
 name: ignite3  
   
 x-ignite-def: &ignite-def  
@@ -81,8 +63,8 @@ services:
     <<: *ignite-def  
     command: --node-name node1  
     ports:  
-      - "10300:10300"  
-      - "10800:10800"  
+      - "10300:10300"  # REST API port
+      - "10800:10800"  # Client port
   node2:  
     <<: *ignite-def  
     command: --node-name node2  
@@ -107,231 +89,51 @@ configs:
       }
 ```
 
-### Starting the Ignite Cluster
+### Starting and Initializing the Cluster
 
-* Open a terminal in the directory containing your `docker-compose.yml` file
-* Run: `docker compose up -d && docker compose logs -f`
-* Check the status with: `docker compose ps`
+1. Start the cluster:
 
-### Initializing the Cluster
+   ```bash
+   docker compose up -d
+   ```
 
-* Open a second terminal in the directory containing your `docker-compose.yml` file
-* Run the Ignite CLI:
+2. Run the Ignite CLI and initialize the cluster:
 
-  ```bash
-  docker run --rm -it --network=host -e LANG=C.UTF-8 -e LC_ALL=C.UTF-8 apacheignite/ignite:3.0.0 cli
-  ```
+   ```bash
+   docker run --rm -it --network=host apacheignite/ignite:3.0.0 cli
+   ```
 
-* Connect to the default node by selecting Yes or `connect http://localhost:10300`
-* Inside the CLI, initialize the cluster:
+3. Inside the CLI, connect to the cluster:
 
-  ```shell
-  cluster init --name=ignite3 --metastorage-group=node1,node2,node3
-  ```
+   ```bash
+   connect http://localhost:10300
+   ```
 
-* Enter SQL cli mode by typing `sql`
-* Create a "Person" table:
+4. Initialize the cluster:
 
-  ```sql
-  CREATE TABLE Person (id INT PRIMARY KEY, name VARCHAR);
-  INSERT INTO Person (id, name) VALUES (1, 'John');
-  ```
-  
-* Exit sql cli mode by typing `exit;`
+   ```bash
+   cluster init --name=ignite3 --metastorage-group=node1,node2,node3
+   ```
 
-```text
-           #              ___                         __
-         ###             /   |   ____   ____ _ _____ / /_   ___
-     #  #####           / /| |  / __ \ / __ `// ___// __ \ / _ \
-   ###  ######         / ___ | / /_/ // /_/ // /__ / / / // ___/
-  #####  #######      /_/  |_|/ .___/ \__,_/ \___//_/ /_/ \___/
-  #######  ######            /_/
-    ########  ####        ____               _  __           _____
-   #  ########  ##       /  _/____ _ ____   (_)/ /_ ___     |__  /
-  ####  #######  #       / / / __ `// __ \ / // __// _ \     /_ <
-   #####  #####        _/ / / /_/ // / / // // /_ / ___/   ___/ /
-     ####  ##         /___/ \__, //_/ /_//_/ \__/ \___/   /____/
-       ##                  /____/
+5. Create a test table:
 
-                      Apache Ignite CLI version 3.0.0
+   ```bash
+   sql
+   CREATE TABLE Person (id INT PRIMARY KEY, name VARCHAR);
+   INSERT INTO Person (id, name) VALUES (1, 'John');
+   exit;
+   ```
 
+## Building Your Java Application
 
-You appear to have not connected to any node yet. Do you want to connect to the default node http://localhost:10300? [Y/n] n
-[disconnected]> connect http://localhost:10300
-Connected to http://localhost:10300
-The cluster is not initialized. Run cluster init command to initialize it.
-[node1]>   cluster init --name=ignite3 --metastorage-group=node1,node2,node3
-Cluster was initialized successfully
-[node1]> sql
-sql-cli> CREATE TABLE Person (id INT PRIMARY KEY, name VARCHAR);
-> INSERT INTO Person (id, name) VALUES (1, 'John');
-Updated 0 rows.
-Updated 1 rows.
+Now, let's create a Java application that connects to our Ignite cluster and performs various data operations.
 
-sql-cli> exit;
-[node1]> 
-```
+### Main Application Class
 
-## Building Your Main Application Class
-
-Now let's create the Main class and build our application step by step. As we add each code block, IntelliJ will prompt you to import the required dependencies.
-
-### Create the Main Class
-
-* Right-click on the `src/main/java` directory
-* Select "New" > "Package" and name it `org.example`
-* Right-click on the new package and select "New" > "Java Class"
-* Name the class "Main"
-
-### Setting Up the Boilerplate
-
-Start with a basic Main class structure:
+Create a `Main.java` file with the following code:
 
 ```java
-package org.example;
-
-public class Main {
-    public static void main(String[] args) {
-        // We'll add our code here
-    }
-}
-```
-
-### Connecting to the Ignite Cluster
-
-> Let IntelliJ automatically add the import for `IgniteClient`.
-
-First, establish a connection to our Ignite cluster using the client API:
-
-```java
-IgniteClient client = IgniteClient.builder()
-        .addresses("localhost:10800", "localhost:10801", "localhost:10802")
-        .build();
-
-System.out.println("Connected to the cluster: " + client.connections());
-```
-
-This creates a client that connects to the three nodes we've set up with Docker. The ports (10800, 10801, 10802) match the ports we exposed in our Docker Compose file.
-
-### Querying an Existing Table
-
-Next, let's query the "Person" table we created during the cluster setup:
-
-```java
-client.sql().execute(null, "SELECT * FROM Person")
-        .forEachRemaining(x -> System.out.println(x.stringValue("name")));
-```
-
-This executes a SQL query against the cluster and prints the name of each person. The first parameter (`null`) is for transactions - we're not using one here.
-
-![](./images/first-run.png)
-
-### Creating a New Table Using Java API
-
-Now, let's create a new table using Ignite's Java API:
-
-```java
-Table table = client.catalog().createTable(TableDefinition.builder("Person2")
-        .ifNotExists()
-        .columns(
-                ColumnDefinition.column("ID", ColumnType.INT32),
-                ColumnDefinition.column("NAME", ColumnType.VARCHAR))
-        .primaryKey("ID")
-        .build());
-```
-
-This code:
-
-* Creates a table named "Person2"
-* Adds two columns: ID (integer) and NAME (string)
-* Sets ID as the primary key
-* Uses `ifNotExists()` to avoid errors if the table already exists
-
-### Adding Data Using Record View with Tuples
-
-There are multiple ways to interact with tables in Ignite 3. First, let's use the RecordView with Tuples:
-
-```java
-RecordView<Tuple> recordView = table.recordView();
-recordView.upsert(null, Tuple.create().set("id", 2).set("name", "Jane"));
-```
-
-This creates a Tuple with id=2 and name="Jane" and inserts it into the table.
-
-### Adding Data Using Record View with POJOs
-
-For this, we need a POJO (Plain Old Java Object) class to represent our data. This should be inside the Main class:
-
-```java
-public static class Person {
-    public Person() { }
-
-    public Person(Integer id, String name) {
-        this.id = id;
-        this.name = name;
-    }
-
-    Integer id;
-    String name;
-}
-```
-
-Now use the Person class with the RecordView to insert data:
-
-```java
-RecordView<Person> pojoView = table.recordView(Person.class);
-pojoView.upsert(null, new Person(3, "Jack"));
-```
-
-This inserts a new Person with id=3 and name="Jack".
-
-### Adding Data Using Key-Value View with Tuples
-
-The KeyValueView treats the table as a key-value store:
-
-```java
-KeyValueView<Tuple, Tuple> keyValueView = table.keyValueView();
-keyValueView.put(null, Tuple.create().set("id", 4), Tuple.create().set("name", "Jill"));
-```
-
-Here we insert a record with id=4 and name="Jill" using key-value semantics.
-
-### Adding Data Using Key-Value View with Native Types
-
-We can also use native Java types with KeyValueView:
-
-```java
-KeyValueView<Integer, String> keyValuePojoView = table.keyValueView(Integer.class, String.class);
-keyValuePojoView.put(null, 5, "Joe");
-```
-
-This inserts a record with id=5 and name="Joe" using native types.
-
-### Querying the New Table
-
-Add code to query our newly created table:
-
-```java
-client.sql().execute(null, "SELECT * FROM Person2")
-        .forEachRemaining(x -> System.out.println(x.stringValue("name")));
-```
-
-### Closing the Client
-
-Always close your client when you're done:
-
-```java
-client.close();
-```
-
-This releases resources and closes the connection to the cluster.
-
-### Complete Main.java File
-
-After adding all the pieces, your complete `Main.java` file should look like this:
-
-```java
-package org.example;
+package com.example;
 
 import org.apache.ignite.catalog.ColumnType;
 import org.apache.ignite.catalog.definitions.ColumnDefinition;
@@ -342,153 +144,209 @@ import org.apache.ignite.table.RecordView;
 import org.apache.ignite.table.Table;
 import org.apache.ignite.table.Tuple;
 
+/**
+ * This example demonstrates connecting to an Apache Ignite 3 cluster
+ * and working with data using different table view patterns.
+ */
 public class Main {
     public static void main(String[] args) {
-        IgniteClient client = IgniteClient.builder()
-                .addresses("localhost:10800", "localhost:10801", "localhost:10802")
-                .build();
-
-        System.out.println("Connected to the cluster: " + client.connections());
-
-        // SQL API (use table created in CLI).
+        // Create an array of connection addresses for fault tolerance
+        String[] addresses = {
+                "localhost:10800",
+                "localhost:10801",
+                "localhost:10802"
+        };
+        
+        // Connect to the Ignite cluster using the client builder pattern
+        try (IgniteClient client = IgniteClient.builder()
+                .addresses(addresses)
+                .build()) {
+            
+            System.out.println("Connected to the cluster: " + client.connections());
+            
+            // Demonstrate querying existing data using SQL API
+            queryExistingTable(client);
+            
+            // Create a new table using Java API
+            Table table = createTable(client);
+            
+            // Demonstrate different ways to interact with tables
+            populateTableWithDifferentViews(table);
+            
+            // Query the new table using SQL API
+            queryNewTable(client);
+        }
+    }
+    
+    /**
+     * Queries the pre-created Person table using SQL
+     */
+    private static void queryExistingTable(IgniteClient client) {
+        System.out.println("\n--- Querying Person table ---");
         client.sql().execute(null, "SELECT * FROM Person")
-                .forEachRemaining(x -> System.out.println(x.stringValue("name")));
-
-        // Java APIs
-        Table table = client.catalog().createTable(TableDefinition.builder("Person2")
-                .ifNotExists()
-                .columns(
-                        ColumnDefinition.column("ID", ColumnType.INT32),
-                        ColumnDefinition.column("NAME", ColumnType.VARCHAR))
-                .primaryKey("ID")
-                .build());
-
-        // All table view types provide identical capabilities.
+                .forEachRemaining(row -> System.out.println("Person: " + row.stringValue("name")));
+    }
+    
+    /**
+     * Creates a new table using the Java API
+     */
+    private static Table createTable(IgniteClient client) {
+        System.out.println("\n--- Creating Person2 table ---");
+        return client.catalog().createTable(
+                TableDefinition.builder("Person2")
+                        .ifNotExists()
+                        .columns(
+                                ColumnDefinition.column("ID", ColumnType.INT32),
+                                ColumnDefinition.column("NAME", ColumnType.VARCHAR))
+                        .primaryKey("ID")
+                        .build());
+    }
+    
+    /**
+     * Demonstrates different ways to interact with tables
+     */
+    private static void populateTableWithDifferentViews(Table table) {
+        System.out.println("\n--- Populating Person2 table using different views ---");
+        
+        // 1. Using RecordView with Tuples
         RecordView<Tuple> recordView = table.recordView();
         recordView.upsert(null, Tuple.create().set("id", 2).set("name", "Jane"));
-
+        System.out.println("Added record using RecordView with Tuple");
+        
+        // 2. Using RecordView with POJOs
         RecordView<Person> pojoView = table.recordView(Person.class);
         pojoView.upsert(null, new Person(3, "Jack"));
-
+        System.out.println("Added record using RecordView with POJO");
+        
+        // 3. Using KeyValueView with Tuples
         KeyValueView<Tuple, Tuple> keyValueView = table.keyValueView();
         keyValueView.put(null, Tuple.create().set("id", 4), Tuple.create().set("name", "Jill"));
-
+        System.out.println("Added record using KeyValueView with Tuples");
+        
+        // 4. Using KeyValueView with Native Types
         KeyValueView<Integer, String> keyValuePojoView = table.keyValueView(Integer.class, String.class);
         keyValuePojoView.put(null, 5, "Joe");
-
-        // Mix and match APIs.
-        client.sql().execute(null, "SELECT * FROM Person2")
-                .forEachRemaining(x -> System.out.println(x.stringValue("name")));
-
-        // Close the client to release resources
-        client.close();
+        System.out.println("Added record using KeyValueView with Native Types");
     }
-
+    
+    /**
+     * Queries the newly created Person2 table using SQL
+     */
+    private static void queryNewTable(IgniteClient client) {
+        System.out.println("\n--- Querying Person2 table ---");
+        client.sql().execute(null, "SELECT * FROM Person2")
+                .forEachRemaining(row -> System.out.println("Person2: " + row.stringValue("name")));
+    }
+    
+    /**
+     * POJO class representing a Person
+     */
     public static class Person {
+        // Default constructor required for serialization
         public Person() { }
-
+        
         public Person(Integer id, String name) {
             this.id = id;
             this.name = name;
         }
-
+        
         Integer id;
         String name;
     }
 }
 ```
 
-## Running Your Application
+## Running the Application
 
-To run your application in IntelliJ IDEA:
+To run your application:
 
-* Make sure your Ignite cluster is running (check with `docker compose ps`)
-* Click the green "Run" button next to the `main` method in your IntelliJ IDEA
+1. Make sure your Ignite cluster is up and running
+2. Compile and run your Java application:
 
-_[Screenshot: IntelliJ Run Configuration window]_
+   ```bash
+   mvn compile exec:java -Dexec.mainClass="com.example.Main"
+   ```
 
 ## Expected Output
 
-If everything is set up correctly, you should see output similar to:
+You should see output similar to this:
 
 ```text
 Connected to the cluster: Connections{active=1, total=1}
-John
-Jane
-Jack
-Jill
-Joe
+
+--- Querying Person table ---
+Person: John
+
+--- Creating Person2 table ---
+
+--- Populating Person2 table using different views ---
+Added record using RecordView with Tuple
+Added record using RecordView with POJO
+Added record using KeyValueView with Tuples
+Added record using KeyValueView with Native Types
+
+--- Querying Person2 table ---
+Person2: Jane
+Person2: Jack
+Person2: Jill
+Person2: Joe
 ```
 
-## Stopping the Ignite Cluster
+## Understanding Table Views in Ignite 3
 
-Stop your Ignite cluster once you are done with this exercise.
+Ignite 3 provides multiple view patterns for interacting with tables:
 
-* Exit completely from the Ignite 3 CLI and close the terminal window.
-* In the terminal window that you used to launch the cluster, use ctrl-c to exit log view.
-* Stop the cluster with `docker compose down`
+### RecordView Pattern
 
-```shell
+RecordView treats tables as a collection of records, perfect for operations that work with entire rows:
+
+```java
+// Get RecordView for Tuple objects (schema-less)
+RecordView<Tuple> recordView = table.recordView();
+recordView.upsert(null, Tuple.create().set("id", 2).set("name", "Jane"));
+
+// Get RecordView for mapped POJO objects (type-safe)
+RecordView<Person> pojoView = table.recordView(Person.class);
+pojoView.upsert(null, new Person(3, "Jack"));
+```
+
+### KeyValueView Pattern
+
+KeyValueView treats tables as a key-value store, ideal for simple lookups:
+
+```java
+// Get KeyValueView for Tuple objects
+KeyValueView<Tuple, Tuple> keyValueView = table.keyValueView();
+keyValueView.put(null, Tuple.create().set("id", 4), Tuple.create().set("name", "Jill"));
+
+// Get KeyValueView for native Java types
+KeyValueView<Integer, String> keyValuePojoView = table.keyValueView(Integer.class, String.class);
+keyValuePojoView.put(null, 5, "Joe");
+```
+
+## Cleaning Up
+
+To stop your Ignite cluster when you're done:
+
+```bash
 docker compose down
-
-[+] Running 4/4
- ✔ Container ignite3-node2-1  Removed                                   2.4s 
- ✔ Container ignite3-node1-1  Removed                                   2.3s 
- ✔ Container ignite3-node3-1  Removed                                   2.3s 
- ✔ Network ignite3_default    Removed                                   0.3s 
 ```
 
 ## Troubleshooting
 
-### Connection Issues
+If you encounter connection issues:
 
-If you receive a connection error like `Connection refused`, make sure:
-
-* Your Ignite 3 Docker containers are running
-* The ports in the docker-compose file match the ports in your client configuration
-* No firewall is blocking the connections
-
-### Table Not Found
-
-If you see a `Table not found` error for the "Person" table, make sure you've created it on your Ignite cluster using the CLI before running the application.
-
-### Docker Network Issues
-
-If you're having trouble connecting to the Ignite nodes, try:
-
-* Using the Docker container IPs instead of localhost (run `docker inspect [container_name]` to find the IP)
-* Making sure your host machine can access the mapped ports
-
-## Understanding the Key Concepts
-
-### Table Views
-
-Ignite 3 provides several ways to interact with tables:
-
-* **RecordView**: Views the table as a collection of records, allowing you to work with the entire record at once.
-  * With Tuples: Uses generic Tuple objects to represent records
-  * With POJOs: Maps records to your custom Java classes
-
-* **KeyValueView**: Views the table as a key-value store, similar to a Map.
-  * With Tuples: Uses Tuple objects for both keys and values
-  * With Native Types: Uses Java types directly (e.g., Integer, String)
-
-### Java API vs. SQL
-
-Ignite 3 provides both a rich Java API and SQL support:
-
-* **Java API**: Provides type safety and integration with Java code
-* **SQL**: Provides a familiar query language and is often more concise for complex queries
-
-The example demonstrates that you can mix and match these approaches in your application.
+* Verify your Docker containers are running with `docker compose ps`
+* Check if the exposed ports match those in your client configuration
+* Ensure that the `localhost` interface can access the Docker container network
 
 ## Next Steps
 
-Now that you've set up a basic Ignite 3 Java application and connected to a cluster, you can:
+Now that you've explored the basics of connecting to Ignite and interacting with data:
 
-* Explore Ignite's transaction capabilities
-* Work with more complex schemas and data types
-* Try different partitioning strategies for your tables
-* Experiment with Ignite's compute features for distributed processing
+* Try implementing transactions
+* Experiment with more complex schemas and data types
+* Explore data partitioning strategies
+* Investigate Ignite's distributed computing capabilities
 
-For more details, refer to the [Apache Ignite 3 Java API documentation](https://ignite.apache.org/releases/3.0.0/javadoc/index.html).
+For more information, consult the [Apache Ignite 3 documentation](https://ignite.apache.org/docs/3.0.0/index).
