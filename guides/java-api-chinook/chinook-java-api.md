@@ -42,25 +42,7 @@ Now let's create a Docker Compose file inside our project to set up a local thre
 * Create a file named `docker-compose.yml` in the root directory of your project
 * Add the following content:
 
-```yaml
-# Docker Compose file for running an Apache Ignite 3 cluster.  
-#  
-# Usage:  
-# - To start only the Ignite nodes (default behavior):  
-#     docker compose up  
-#  
-# - To start the Ignite nodes along with the optional cloud-connector:  
-#     docker compose --profile cloud-connector up  
-#  
-# The cloud-connector service is disabled by default and will only start if the "cloud-connector" profile is specified.  
-#  
-# - To start the CLI:  
-#     docker run --rm -it --network=host -e LANG=C.UTF-8 -e LC_ALL=C.UTF-8 apacheignite/ignite:3.0.0 cli  
-#  
-# - To initialize the cluster  
-#     cluster init --name=ignite3 --metastorage-group=node1,node2,node3  
-#  
-  
+```yaml 
 name: ignite3  
   
 x-ignite-def: &ignite-def  
