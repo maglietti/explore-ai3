@@ -374,7 +374,7 @@ Reconnect to the CLI:
 
 ```bash
 docker run -it --rm --net ignite3_default apacheignite/ignite3 cli
-connect http://node1:10300
+connect http://localhost:10300
 ```
 
 The cluster is already initialized, so you can go directly to the SQL CLI:
