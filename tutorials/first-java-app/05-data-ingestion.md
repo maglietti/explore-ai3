@@ -12,584 +12,338 @@ Real-time transit monitoring demands a reliable data pipeline with specific char
 4. **Resource management**: Properly managing connections and threads
 5. **Configurable behavior**: Adjusting parameters like frequency based on requirements
 
-```mermaid
-graph TB
-    GTFS[GTFS Feed] --> |HTTP Request| Client[GTFSFeedClient]
-    Client --> |Transform| Domain[Vehicle Position Objects]
-    Domain --> |Batch Insert| Service[Data Ingestion Service]
-    Service --> |SQL Batch| Ignite[Apache Ignite]
-    Clock[Scheduler] --> |Trigger Every N Seconds| Service
+## The Data Ingestion Workflow
+
+The data ingestion workflow in our application follows these steps:
+
+1. **Scheduled execution**: A timer triggers data collection at regular intervals
+2. **Data fetching**: The GTFS client retrieves vehicle positions from the transit feed
+3. **Data transformation**: Vehicle data is converted to our domain model format
+4. **Batch processing**: Records are grouped into batches for efficient storage
+5. **Transactional storage**: Each batch is stored atomically in the database
+6. **Statistics tracking**: Metrics are collected to monitor ingestion performance
+
+## Ingest Service Implementation
+
+Let's examine how the `DataIngestionService` class implements this workflow. Open the file:
+
+```shell
+open src/main/java/com/example/transit/service/DataIngestionService.java
 ```
 
-> [!note]
-> Data ingestion is the process of fetching, transforming, loading, and processing data from various sources for immediate use or storage in a database. In our case, we're ingesting real-time transit data from a GTFS feed and storing it in Apache Ignite.
-
-## Implementing the DataIngestionService
-
-Let's create a `IngestService.java` file that implements this pipeline:
+The core functionality is in the `fetchAndStoreData()` method, which is called periodically by a scheduler:
 
 ```java
-package com.example.transit.service;
+private void fetchAndStoreData() {
+    long fetchStartTime = System.currentTimeMillis();
+    try {
+        // Fetch the latest vehicle positions
+        List<VehiclePosition> positions = gtfsService.getVehiclePositions();
+        lastFetchCount.set(positions.size());
+        totalFetched.addAndGet(positions.size());
 
-import org.apache.ignite.client.IgniteClient;
+        if (!positions.isEmpty()) {
+            // Store the positions in the database
+            int recordsStored = storeVehiclePositions(positions);
+            totalStored.addAndGet(recordsStored);
 
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicLong;
-
-/**
- * Service responsible for periodically fetching transit data and storing it in Ignite.
- *
- * This service uses a scheduled executor to periodically fetch data from the
- * GTFS feed and store it in the Ignite database.
- */
-public class IngestService {
-    private final GtfsService feedService;
-    private final ConnectService connectionService;
-    private final ScheduledExecutorService scheduler;
-    private ScheduledFuture<?> scheduledTask;
-    private int batchSize = 100; // Default batch size
-
-    // Statistics tracking
-    private final AtomicLong totalFetched = new AtomicLong(0);
-    private final AtomicLong totalStored = new AtomicLong(0);
-    private final AtomicLong lastFetchCount = new AtomicLong(0);
-    private final AtomicLong lastFetchTime = new AtomicLong(0);
-    private long startTime;
-
-    /**
-     * Constructs a new data ingestion service.
-     *
-     * @param feedService       The service for retrieving GTFS feed data
-     * @param connectionService The service providing Ignite client connections
-     */
-    public IngestService(GtfsService feedService, ConnectService connectionService) {
-        this.feedService = feedService;
-        this.connectionService = connectionService;
-        this.scheduler = Executors.newSingleThreadScheduledExecutor(r -> {
-            Thread t = new Thread(r, "data-ingestion-thread");
-            t.setDaemon(true);
-            // Make the thread respond better to interrupts
-            t.setUncaughtExceptionHandler((thread, ex) -> {
-                System.err.println("Uncaught exception in " + thread.getName() + ": " + ex.getMessage());
-                ex.printStackTrace();
-            });
-            return t;
-        });
-    }
-
-    /**
-     * Sets the batch size for database operations.
-     * Larger batch sizes can improve performance but consume more memory.
-     *
-     * @param batchSize Number of records to process in each batch
-     * @return This DataIngestionService instance for method chaining
-     */
-    public IngestService withBatchSize(int batchSize) {
-        if (batchSize < 1) {
-            throw new IllegalArgumentException("Batch size must be at least 1");
-        }
-        this.batchSize = batchSize;
-        return this;
-    }
-
-    /**
-     * Starts the data ingestion service with the specified interval.
-     *
-     * @param intervalSeconds The interval between data fetches in seconds
-     */
-    public void start(int intervalSeconds) {
-        if (scheduledTask != null) {
-            System.out.println("Ingestion service is already running. Stop it first before restarting.");
-            return;
-        }
-
-        this.startTime = System.currentTimeMillis();
-
-        // Reset statistics
-        totalFetched.set(0);
-        totalStored.set(0);
-        lastFetchCount.set(0);
-        lastFetchTime.set(0);
-
-        // Schedule the task with initial delay of 0 (start immediately)
-        scheduledTask = scheduler.scheduleAtFixedRate(
-                this::fetchAndStoreData,
-                0,
-                intervalSeconds,
-                TimeUnit.SECONDS);
-
-        System.out.println("+++ Data ingestion service started with "
-                + intervalSeconds + " second interval");
-    }
-
-    /**
-     * Stops the data ingestion service and cleans up resources.
-     */
-    public void stop() {
-        if (scheduledTask != null) {
-            scheduledTask.cancel(false); // Don't interrupt if running
-            scheduledTask = null;
-
-            // Properly shut down the executor service
-            try {
-                // Attempt to shut down gracefully
-                scheduler.shutdown();
-                if (!scheduler.awaitTermination(5, TimeUnit.SECONDS)) {
-                    // Force shutdown if graceful shutdown fails
-                    scheduler.shutdownNow();
-                }
-                System.out.println("=== Data ingestion service stopped");
-            } catch (InterruptedException e) {
-                // If we're interrupted during shutdown, force immediate shutdown
-                scheduler.shutdownNow();
-                Thread.currentThread().interrupt(); // Preserve interrupt status
-                System.err.println("Data ingestion service shutdown interrupted");
-            }
-
+            System.out.println(">>> Fetched " + positions.size() +
+                    " and stored " + recordsStored +
+                    " vehicle positions");
         } else {
-            System.err.println("Ingestion service is not running");
-        }
-    }
-
-    /**
-     * Fetches data from the GTFS feed and stores it in Ignite.
-     * This method is called periodically by the scheduler.
-     */
-    private void fetchAndStoreData() {
-        long fetchStartTime = System.currentTimeMillis();
-        try {
-            // Fetch the latest vehicle positions
-            List<Map<String, Object>> positions = feedService.getVehiclePositions();
-            lastFetchCount.set(positions.size());
-            totalFetched.addAndGet(positions.size());
-
-            if (!positions.isEmpty()) {
-                // Store the positions in the database
-                int recordsStored = storeVehiclePositions(positions);
-                totalStored.addAndGet(recordsStored);
-
-                System.out.println("--- Fetched " + positions.size() +
-                        " and stored " + recordsStored +
-                        " vehicle positions");
-            } else {
-                System.out.println("No vehicle positions fetched from feed");
-            }
-
-        } catch (Exception e) {
-            System.err.println("Error in data ingestion: " + e.getMessage());
-            e.printStackTrace();
-        } finally {
-            lastFetchTime.set(System.currentTimeMillis() - fetchStartTime);
-        }
-    }
-
-    /**
-     * Stores vehicle positions in Ignite using efficient batch processing.
-     * Each batch is processed in a single transaction using the runInTransaction
-     * method
-     * for automatic transaction lifecycle management.
-     *
-     * @param positions List of vehicle positions to store
-     * @return Number of records successfully stored
-     */
-    private int storeVehiclePositions(List<Map<String, Object>> positions) {
-        if (positions.isEmpty()) {
-            return 0;
+            System.out.println("No vehicle positions fetched from feed");
         }
 
-        int recordsProcessed = 0;
-        IgniteClient client = connectionService.getClient();
-
-        try {
-            // Process records in batches
-            for (int i = 0; i < positions.size(); i += batchSize) {
-                // Prepare SQL statement
-                String insertSql = "INSERT INTO vehicle_positions " +
-                        " (vehicle_id, route_id, latitude, longitude, time_stamp, current_status) " +
-                        "VALUES (?, ?, ?, ?, ?, ?)";
-
-                // Determine the end index for current batch
-                int endIndex = Math.min(i + batchSize, positions.size());
-                List<Map<String, Object>> batch = positions.subList(i, endIndex);
-
-
-                // Use runInTransaction to automatically handle transaction lifecycle
-                client.transactions().runInTransaction(tx -> {
-                    // Insert all records in the current batch
-                    for (Map<String, Object> position : batch) {
-                        // Use SQL API to execute insert batch within transaction
-                        client.sql().execute(tx,
-                                insertSql,
-                                position.get("vehicle_id"),
-                                position.get("route_id"),
-                                position.get("latitude"),
-                                position.get("longitude"),
-                                position.get("time_stamp"),
-                                position.get("current_status"));
-                    }
-                    // No need for explicit commit - handled by runInTransaction
-                    return null; // Return value not used in this case
-                });
-
-                recordsProcessed += batch.size();
-            }
-
-            return recordsProcessed;
-        } catch (Exception e) {
-            System.err.println("Error storing vehicle positions: " + e.getMessage());
-            e.printStackTrace();
-            return recordsProcessed;
-        }
-    }
-
-    /**
-     * Returns a snapshot of current ingestion statistics.
-     *
-     * @return IngestStats object containing statistic values
-     */
-    public IngestStats getStatistics() {
-        long runningTimeMs = System.currentTimeMillis() - startTime;
-
-        return new IngestStats(
-                totalFetched.get(),
-                totalStored.get(),
-                lastFetchCount.get(),
-                lastFetchTime.get(),
-                runningTimeMs,
-                scheduledTask != null);
-    }
-
-    /**
-     * Prints current statistics to the console.
-     */
-    public void printStatistics() {
-        IngestStats stats = getStatistics();
-
-        System.out.println("\n=== Ingestion Statistics ===");
-        System.out.println("• Status: " + (stats.isRunning() ? "Running" : "Stopped"));
-        System.out.println("• Running time: " + formatDuration(stats.getRunningTimeMs()));
-        System.out.println("• Total records fetched: " + stats.getTotalFetched());
-        System.out.println("• Total records stored: " + stats.getTotalStored());
-        System.out.println("• Last fetch count: " + stats.getLastFetchCount());
-        System.out.println("• Last fetch time: " + stats.getLastFetchTimeMs() + "ms");
-        System.out.println("============================\n");
-    }
-
-    /**
-     * Formats milliseconds into a human-readable duration string.
-     */
-    private String formatDuration(long milliseconds) {
-        long seconds = milliseconds / 1000;
-        long minutes = seconds / 60;
-        long hours = minutes / 60;
-        seconds %= 60;
-        minutes %= 60;
-
-        return String.format("%02d:%02d:%02d", hours, minutes, seconds);
-    }
-
-    /**
-     * Immutable class representing ingestion statistics at a point in time.
-     */
-    public static class IngestStats {
-        private final long totalFetched;
-        private final long totalStored;
-        private final long lastFetchCount;
-        private final long lastFetchTimeMs;
-        private final long runningTimeMs;
-        private final boolean running;
-
-        public IngestStats(long totalFetched, long totalStored, long lastFetchCount,
-                long lastFetchTimeMs, long runningTimeMs, boolean running) {
-            this.totalFetched = totalFetched;
-            this.totalStored = totalStored;
-            this.lastFetchCount = lastFetchCount;
-            this.lastFetchTimeMs = lastFetchTimeMs;
-            this.runningTimeMs = runningTimeMs;
-            this.running = running;
-        }
-
-        // Getters
-        public long getTotalFetched() {
-            return totalFetched;
-        }
-        public long getTotalStored() {
-            return totalStored;
-        }
-        public long getLastFetchCount() {
-            return lastFetchCount;
-        }
-        public long getLastFetchTimeMs() {
-            return lastFetchTimeMs;
-        }
-        public long getRunningTimeMs() {
-            return runningTimeMs;
-        }
-        public boolean isRunning() {
-            return running;
-        }
+    } catch (Exception e) {
+        logger.error("Error in data ingestion: {}", e.getMessage());
+    } finally {
+        lastFetchTime.set(System.currentTimeMillis() - fetchStartTime);
     }
 }
 ```
 
-> [!tip]
-> The `ScheduledExecutorService` is a Java concurrency utility that lets us execute tasks periodically. We're using it to repeatedly fetch and store data at fixed intervals, which is essential for real-time monitoring. The thread is marked as a daemon thread, meaning it won't prevent the JVM from shutting down when the main thread exits.
+This method:
 
-> [!important]
-> **Checkpoint**: Review the key components of the ingestion service and make sure you understand:
->
-> - How scheduled execution works
-> - Why batch processing improves performance
-> - The role of transactions in data integrity
-> - The purpose of statistics tracking
+1. Records the start time for performance measurement
+2. Calls the GTFS service to fetch vehicle positions
+3. Updates statistics counters
+4. Calls `storeVehiclePositions()` to save the data to Ignite
+5. Captures and handles any exceptions
+6. Updates the timing statistics
 
-## Testing Your Ingest Service
-
-Let's create a simple test to verify our data ingestion service. Create a new file `IngestExample.java`:
+The actual storage happens in the `storeVehiclePositions()` method:
 
 ```java
-package com.example.transit.examples;
+private int storeVehiclePositions(List<VehiclePosition> positions) {
+    if (positions.isEmpty()) {
+        return 0;
+    }
 
-import com.example.transit.service.*;
-import com.example.transit.util.LoggingUtil;
-import org.apache.ignite.client.IgniteClient;
+    int recordsProcessed = 0;
+    IgniteClient client = connectionManager.getClient();
 
-import java.io.ByteArrayOutputStream;
-import java.io.PrintStream;
+    try {
+        // Get table and record view for vehicle positions
+        Table vehiclePositionsTable = client.tables().table(VehiclePosition.class.getSimpleName());
+        RecordView<VehiclePosition> recordView = vehiclePositionsTable.recordView(VehiclePosition.class);
 
-/**
- * Example demonstrating the data ingestion pipeline from GTFS feed to Ignite.
- * This class shows how to:
- * 1. Set up the database schema if not already set up
- * 2. Start and configure the data ingestion service
- * 3. Verify ingested data
- */
-public class IngestExample {
+        // Process records in batches
+        for (int i = 0; i < positions.size(); i += batchSize) {
+            // Determine the end index for current batch
+            int endIndex = Math.min(i + batchSize, positions.size());
+            List<VehiclePosition> batch = positions.subList(i, endIndex);
 
-    public static void main(String[] args) {
-        System.out.println("=== Data Ingestion Service Example ===");
+            // Use runInTransaction to automatically handle transaction lifecycle
+            client.transactions().runInTransaction(tx -> {
+                recordView.upsertAll(tx, batch);
+                return null;
+            });
 
-        // Configure logging to suppress unnecessary output
-        LoggingUtil.setLogs("OFF");
-
-        // Load configuration
-        ConfigService config = ConfigService.getInstance();
-        if (!config.validateConfiguration()) {
-            return;
+            recordsProcessed += batch.size();
         }
 
-        // Create references to hold services
-        final ConnectService[] connectionServiceRef = new ConnectService[1];
-        final IngestService[] ingestServiceRef = new IngestService[1];
-
-        // Register shutdown hook with the reference arrays
-        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            System.out.println("Shutdown hook triggered, cleaning up resources...");
-            if (ingestServiceRef[0] != null) {
-                ingestServiceRef[0].stop();
-            }
-            if (connectionServiceRef[0] != null) {
-                connectionServiceRef[0].close();
-            }
-        }));
-
-        try {
-            // Create Ignite connection
-            System.out.println("\n--- Connecting to Ignite cluster");
-            ConnectService connectionService = new ConnectService();
-            connectionServiceRef[0] = connectionService;
-
-            // Create reporting service
-            ReportService reportService = new ReportService(connectionService.getClient());
-
-            // Create and initialize the schema
-            System.out.println("\n--- Setting up database schema");
-            SchemaService schemaService = new SchemaService(connectionService);
-            boolean schemaCreated = schemaService.createSchema();
-
-            if (!schemaCreated) {
-                System.err.println("Failed to create schema. Aborting example.");
-                return;
-            }
-
-            // Verify initial state (should be empty or contain previous data)
-            System.out.println("\n--- Initial data state");
-            reportService.sampleVehicleData();
-
-            // Create GTFS feed service and data ingestion service
-            System.out.println("\n=== Starting data ingestion service");
-            GtfsService feedService = new GtfsService(config.getFeedUrl());
-
-            IngestService ingestService = new IngestService(
-                    feedService, connectionService)
-                    .withBatchSize(100); // Configure batch size
-
-            // Store the service in our reference array for the shutdown hook
-            ingestServiceRef[0] = ingestService;
-
-            ingestService.start(15); // Fetch every 15 seconds
-
-            reportService.displayIngestionStatus(ingestService.getStatistics());
-
-            // Wait for some data to be ingested
-            System.out.println("\n=== Waiting for data ingestion (45 seconds)...");
-            System.out.println(); // Add a blank line for separation
-
-            // Create a volatile boolean for thread signaling
-            final boolean[] keepSpinning = { true };
-
-            // Spinning characters and counter
-            String[] spinnerChars = new String[] { "⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏" };
-            int[] seconds = { 0 }; // Using array to make it accessible inside the interceptor
-            int[] spinPosition = { 0 }; // Track spinner position separately
-
-            // Original System.out to be restored later
-            PrintStream originalOut = System.out;
-
-            // Thread-safe mechanism to manage spinner updates
-            Object lock = new Object();
-
-            // Create our interceptor to manage output and the spinner
-            PrintStream interceptor = new PrintStream(new ByteArrayOutputStream()) {
-                @Override
-                public void println(String x) {
-                    synchronized (lock) {
-                        // Clear the spinner line first
-                        originalOut.print("\r\033[K");
-                        // Print the actual output
-                        originalOut.println(x);
-                        // If spinner is still active, redraw it
-                        if (keepSpinning[0]) {
-                            String spinChar = spinnerChars[spinPosition[0] % spinnerChars.length];
-                            originalOut.print(spinChar + " " + (seconds[0] + 1) + "s elapsed");
-                            originalOut.flush();
-                        }
-                    }
-                }
-
-                @Override
-                public void print(String s) {
-                    // We need this override for consistent behavior
-                    // but nothing special is needed - just accumulate
-                    super.print(s);
-                }
-            };
-
-            // Set our interceptor as the system out
-            System.setOut(interceptor);
-
-            // Define spinner update interval for 1 full revolution per second
-            int spinnerUpdatesPerSecond = 10; // 10 characters = 1 revolution
-            long spinnerUpdateDelay = 1000 / spinnerUpdatesPerSecond; // milliseconds
-            long nextSecondTime = System.currentTimeMillis() + 1000; // when to increment the seconds counter
-
-            // Run the spinner in the main thread using a timer
-            while (seconds[0] < 45 && keepSpinning[0]) {
-                synchronized (lock) {
-                    String spinChar = spinnerChars[spinPosition[0] % spinnerChars.length];
-                    originalOut.print("\r" + spinChar + " " + (seconds[0] + 1) + "s elapsed");
-                    originalOut.flush();
-                }
-
-                try {
-                    Thread.sleep(spinnerUpdateDelay);
-
-                    // Increment spinner position
-                    spinPosition[0]++;
-
-                    // Check if a second has passed
-                    long currentTime = System.currentTimeMillis();
-                    if (currentTime >= nextSecondTime) {
-                        seconds[0]++;
-                        nextSecondTime = currentTime + 1000;
-                    }
-                } catch (InterruptedException e) {
-                    keepSpinning[0] = false;
-                    break;
-                }
-            }
-
-            // Clean up the spinner line
-            originalOut.print("\r\033[K");
-            originalOut.println("--- Data ingestion wait complete!");
-
-            // Restore original System.out
-            System.setOut(originalOut);
-
-            // Verify data after ingestion
-            System.out.println("\n--- Data state after ingestion");
-            reportService.displaySystemStatistics();
-
-            // Stop the ingestion service
-            System.out.println("\n=== Stopping data ingestion service");
-            ingestService.stop();
-            reportService.displayIngestionStatus(ingestService.getStatistics());
-
-            // Give threads time to clean up
-            System.out.println("Waiting for all threads to terminate...");
-            Thread.sleep(1000);
-
-            System.out.println("\n=== Example completed successfully!");
-
-        } catch (Exception e) {
-            System.err.println("Error during example: " + e.getMessage());
-            e.printStackTrace();
-        } finally {
-            // Make sure ingestion service is stopped
-            if (ingestServiceRef[0] != null) {
-                ingestServiceRef[0].stop();
-            }
-
-            // Clean up connection
-            if (connectionServiceRef[0] != null) {
-                connectionServiceRef[0].close();
-            }
-        }
+        return recordsProcessed;
+    } catch (Exception e) {
+        logger.error("Error storing vehicle positions: {}", e.getMessage());
+        return recordsProcessed;
     }
 }
 ```
 
-This test performs a complete cycle of operations:
+This method:
 
-1. Set up the database schema
-2. Verify the initial data state
-3. Start the ingestion service
-4. Wait for data to be ingested
-5. Print statistics about the ingestion process
-6. Verify the final data state
-7. Stop the service and clean up resources
+1. Obtains a reference to the vehicle positions table
+2. Creates a `RecordView` for type-safe operations
+3. Processes records in configurable batches for efficiency
+4. Uses transactions to ensure data consistency
+5. Handles exceptions and returns the count of processed records
 
-> [!note]
-> The test includes a visual spinner animation to indicate progress during the waiting period. This is implemented using ANSI escape codes for terminal control and a custom `PrintStream` interceptor to handle concurrent logging output.
+## Statistics Tracking
 
-Execute the test to validate the ingestion service:
+The service keeps track of various statistics to monitor its performance:
+
+```java
+// Statistics tracking
+private final AtomicLong totalFetched = new AtomicLong(0);
+private final AtomicLong totalStored = new AtomicLong(0);
+private final AtomicLong lastFetchCount = new AtomicLong(0);
+private final AtomicLong lastFetchTime = new AtomicLong(0);
+private long startTime;
+```
+
+These statistics are exposed through the `IngestStats` class, which is an immutable data container:
+
+```shell
+open src/main/java/com/example/transit/model/IngestStats.java
+```
+
+This class provides a snapshot of the current service state:
+
+```java
+public class IngestStats {
+    private final long totalFetched;
+    private final long totalStored;
+    private final long lastFetchCount;
+    private final long lastFetchTimeMs;
+    private final long runningTimeMs;
+    private final boolean running;
+    
+    // Constructor and getters...
+}
+```
+
+## Service Lifecycle Management
+
+The `DataIngestionService` includes methods to start and stop the service:
+
+```java
+public void start(int intervalSeconds) {
+    if (scheduledTask != null) {
+        System.out.println("Ingestion service is already running. Stop it first before restarting.");
+        return;
+    }
+
+    // Reset statistics tracking
+    this.startTime = System.currentTimeMillis();
+    this.totalFetched.set(0);
+    this.totalStored.set(0);
+    this.lastFetchCount.set(0);
+    this.lastFetchTime.set(0);
+
+    // Schedule the task to run at fixed intervals
+    scheduledTask = scheduler.scheduleAtFixedRate(
+            this::fetchAndStoreData,
+            0,  // Start immediately
+            intervalSeconds,
+            TimeUnit.SECONDS);
+
+    System.out.println("--- Data ingestion service started with "
+            + intervalSeconds + " second interval");
+}
+
+public void stop() {
+    if (scheduledTask != null) {
+        scheduledTask.cancel(false); // Don't interrupt if running
+        scheduledTask = null;
+
+        // Properly shut down the executor service
+        try {
+            // Attempt to shut down gracefully
+            scheduler.shutdown();
+            if (!scheduler.awaitTermination(5, TimeUnit.SECONDS)) {
+                // Force shutdown if graceful shutdown fails
+                scheduler.shutdownNow();
+            }
+            System.out.println("=== Data ingestion service stopped");
+        } catch (InterruptedException e) {
+            // If we're interrupted during shutdown, force immediate shutdown
+            scheduler.shutdownNow();
+            Thread.currentThread().interrupt(); // Preserve interrupt status
+            System.err.println("Data ingestion service shutdown interrupted");
+        }
+    } else {
+        System.err.println("Ingestion service is not running");
+    }
+}
+```
+
+These methods handle:
+
+1. Service initialization and scheduling
+2. Statistics reset on start
+3. Graceful shutdown with timeout
+4. Thread interrupt handling
+5. Status reporting
+
+## Ingest Service Example
+
+Let's run the ingestion service example to see it in action:
 
 ```bash
-mvn compile exec:java -Dexec.mainClass="com.example.transit.examples.IngestExample"
+mvn compile exec:java@ingest-example
 ```
 
-> [!note]
-> The test runs for 45 seconds without updating the screen most of the time.
-> Wait until you see that the test completed or failed before taking action.
+This command runs the `IngestExample` class, which demonstrates a complete ingestion workflow. Let's examine this example:
 
-**Expected Output**: When the test completes successfully, you should see statistics about the ingestion process and verification of the data in Ignite. The test will terminate with a "Test completed successfully!" message.
+```shell
+open src/main/java/com/example/transit/examples/IngestExample.java
+```
 
-> [!important]
-> **Checkpoint**: After running the test, verify:
->
-> - The schema was created successfully
-> - Data was fetched and stored in the database
-> - The ingestion statistics show positive records fetched and stored
-> - The final data verification shows records in the database
+The example follows these steps:
+
+1. Verify database connectivity
+2. Set up the database schema if it doesn't exist
+3. Start the ingestion service with a 15-second interval
+4. Run for 45 seconds while showing a progress indicator
+5. Display statistics after ingestion
+6. Stop the ingestion service and clean up resources
+
+The core part of the example is:
+
+```java
+// Create GTFS feed service and data ingestion service
+System.out.println("\n=== Starting data ingestion service");
+GtfsService feedService = new GtfsService(config.getFeedUrl());
+DataIngestionService ingestService = new DataIngestionService(
+        feedService, connectionManager)
+        .withBatchSize(100); // Configure batch size
+
+try {
+    ingestService.start(15); // Fetch every 15 seconds
+    reportingService.displayIngestionStatus(ingestService.getStatistics());
+
+    // Wait for some data to be ingested
+    System.out.println("\n=== Waiting for data ingestion (45 seconds)...");
+    
+    // ... (waiting code) ...
+    
+    // Verify data after ingestion
+    System.out.println("\n--- Data state after ingestion");
+    reportingService.displaySystemStatistics();
+
+    // Display ingestion statistics
+    ingestService.printStatistics();
+} finally {
+    // Always stop the ingestion service before exiting
+    System.out.println("\n=== Stopping data ingestion service");
+    ingestService.stop();
+    reportingService.displayIngestionStatus(ingestService.getStatistics());
+}
+```
+
+When you run this example, you'll see output similar to:
+
+```text
+=== Data Ingestion Service Example ===
+--- Setting up database schema
+--- Vehicle positions table already exists
+
+--- Initial data state
+Verifying data in VehiclePosition table
+<<< Table contains 1532 records
+
+Sample records (most recent):
+Vehicle: 5730, Route: 22, Status: STOPPED_AT, Time: 2025-03-25 16:54:46
+Vehicle: 1010, Route: F, Status: IN_TRANSIT_TO, Time: 2025-03-25 16:54:46
+Vehicle: 5813, Route: 1, Status: IN_TRANSIT_TO, Time: 2025-03-25 16:54:46
+
+Top routes by number of records:
+Route 29: 88 records
+Route 14R: 88 records
+Route 49: 88 records
+Route 1: 80 records
+Route 22: 80 records
+
+=== Starting data ingestion service
+--- Data ingestion service started with 15 second interval
+• Status: Running
+• Records fetched: 0
+• Records stored: 0
+• Last fetch count: 0
+• Running time: 00:00:00
+
+=== Waiting for data ingestion (45 seconds)...
+--- Data ingestion wait complete!
+
+--- Data state after ingestion
+• Total records: 2068
+• Unique vehicles: 536
+• Oldest record: 2025-03-25 16:54:46
+• Newest record: 2025-03-25 17:01:11
+• Data collection active
+
+=== Ingestion Statistics ===
+• Status: Running
+• Running time: 00:00:45
+• Total records fetched: 536
+• Total records stored: 536
+• Last fetch count: 536
+• Last fetch time: 1253ms
+• Ingestion rate: 11.91 records/second
+============================
+
+=== Stopping data ingestion service
+=== Data ingestion service stopped
+• Status: Stopped
+• Records fetched: 536
+• Records stored: 536
+• Last fetch count: 536
+• Last fetch time: 1253ms
+• Running time: 00:00:46
+
+=== Example completed successfully!
+```
+
+This output shows:
+
+1. The initial database state before ingestion
+2. The ingestion service starting and running
+3. Statistics about the data after ingestion
+4. Performance metrics like fetch time and ingestion rate
 
 ## Next Steps
 
-Congratulations! You've now implemented a robust data ingestion service that:
+In this module, you've implemented a robust data ingestion service that:
 
 1. Periodically fetches vehicle position data from a GTFS-realtime feed
 2. Efficiently stores this data in Apache Ignite using batch processing
@@ -599,16 +353,6 @@ Congratulations! You've now implemented a robust data ingestion service that:
 
 This service forms the backbone of our transit monitoring system, ensuring our database is constantly updated with the latest vehicle positions.
 
-In the next module, we'll build on this foundation by implementing SQL queries to analyze the transit data and extract valuable insights about vehicle locations, route performance, and potential service disruptions.
+In the next module, we'll build on this foundation by implementing a monitoring service that detects service disruptions in real-time.
 
-> [!important]
-> **Final Module Checkpoint**: Before proceeding to the next module, ensure:
->
-> - You understand how the data ingestion service works
-> - The test application runs successfully
-> - You can explain the role of transactions in maintaining data integrity
-> - You understand how the service handles failures
-> - You've considered how the service might be optimized for your specific needs
-
-> [!tip]
-> **Next Steps:** Continue to [Module 6: Exploring Transit Data with SQL Queries](06-implementing-queries.md) to learn how to extract insights from your ingested data.
+**Next Steps:** Continue to [Module 6: Implementing a Service Monitor](06-continuous-query.md)
