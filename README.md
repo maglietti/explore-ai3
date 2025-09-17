@@ -142,7 +142,7 @@ docker compose --profile cloud-connector down
 
 - [Apache Ignite Documentation](https://ignite.apache.org/docs/ignite3/latest/)
 - [Chinook Database GitHub Repository](https://github.com/lerocha/chinook-database)
-- [SQL System Views Reference](https://ignite.apache.org/docs/ignite3/latest/developers-guide/sql/system-views)
+- [SQL System Views Reference](https://ignite.apache.org/docs/ignite3/latest/administrators-guide/metrics/system-views.html)
 - [GridGain Control Center Documentation](https://docs.gridgain.com/docs/control-center-overview)
 
 ## License
